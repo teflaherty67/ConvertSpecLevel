@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Command">
+    <Text>ConvertSpecLevel - Command 1</Text>
+    <Description>Some description</Description>
+    <Assembly>ConvertSpecLevel\ConvertSpecLevel.dll</Assembly>
+    <FullClassName>ConvertSpecLevel.Command1</FullClassName>
+    <ClientId>40466aeb-fcb4-4cb4-9cd9-74ab765cb8b6</ClientId>
+    <VendorId>com.YOUR COMPANY NAME</VendorId>
+    <VendorDescription>YOUR COMPANY NAME, YOUR COMPANY URL</VendorDescription>
+  </AddIn>
+  <AddIn Type="Command">
+    <Text>ConvertSpecLevel - Command 2</Text>
+    <Description>Some description</Description>
+    <Assembly>ConvertSpecLevel\ConvertSpecLevel.dll</Assembly>
+    <FullClassName>ConvertSpecLevel.Command2</FullClassName>
+    <ClientId>c54eb2f0-9d65-42e4-9f4d-b345d007521e</ClientId>
+    <VendorId>com.YOUR COMPANY NAME</VendorId>
+    <VendorDescription>YOUR COMPANY NAME, YOUR COMPANY URL</VendorDescription>
+  </AddIn>
+  <AddIn Type="Application">
+    <Name>ConvertSpecLevel</Name>
+    <Assembly>ConvertSpecLevel\ConvertSpecLevel.dll</Assembly>
+    <FullClassName>ConvertSpecLevel.App</FullClassName>
+    <ClientId>d2622c87-69d7-488a-9ab5-ed709a043104</ClientId>
+    <VendorId>com.YOUR COMPANY NAME</VendorId>
+    <VendorDescription>YOUR COMPANY NAME, YOUR COMPANY URL</VendorDescription>
+  </AddIn>
+</RevitAddIns>
