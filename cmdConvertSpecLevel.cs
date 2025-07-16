@@ -11,6 +11,18 @@
             Document curDoc = uidoc.Document;
 
             // launch the form
+            frmConvertSpecLevel curForm = new frmConvertSpecLevel()
+            {
+                Topmost = true,
+            };
+
+            curForm.ShowDialog();
+
+            // check if user clicked OK
+            if (curForm.DialogResult != true)
+            {
+                return Result.Cancelled;
+            }
 
             // get user input from the form
 
