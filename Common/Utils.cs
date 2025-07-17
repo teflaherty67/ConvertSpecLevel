@@ -1,7 +1,10 @@
-﻿namespace ConvertSpecLevel.Common
+﻿
+
+namespace ConvertSpecLevel.Common
 {
     internal static class Utils
     {
+        #region Ribbon Panel
         internal static RibbonPanel CreateRibbonPanel(UIControlledApplication app, string tabName, string panelName)
         {
             RibbonPanel curPanel;
@@ -25,5 +28,17 @@
 
             return null;
         }
+
+        internal static View GetViewByNameContainsAndAssociatedLevel(Document curDoc, string v1, string v2)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static List<string> UpdateFloorFinishInActiveView(Document curDoc, string selectedSpecLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
     }
 }
