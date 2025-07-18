@@ -190,14 +190,10 @@ namespace ConvertSpecLevel.Common
 
         #endregion
 
-
-
         internal static List<View> GetAllViewsByNameContainsAndAssociatedLevel(Document curDoc, string v1, string v2)
         {
             throw new NotImplementedException();
-        }
-
-      
+        }      
 
         internal static View GetViewByNameContainsAndAssociatedLevel(Document curDoc, string v1, string v2)
         {
@@ -207,28 +203,11 @@ namespace ConvertSpecLevel.Common
         internal static ViewSheet GetViewSheetByName(Document curDoc, string v)
         {
             throw new NotImplementedException();
-        }
-
-        internal static List<string> UpdateFloorFinishInActiveView(Document curDoc, string selectedSpecLevel)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal static void UpdateFrontDoorType(Document curDoc, string selectedSpecLevel)
-        {
-            throw new NotImplementedException();
-        }
+        }      
 
         internal static void UpdateLightingFixturesInActiveView(Document curDoc, string selectedSpecLevel)
         {
             throw new NotImplementedException();
-        }
-
-        internal static void UpdateRearDoorType(Document curDoc, string selectedSpecLevel)
-        {
-            throw new NotImplementedException();
-        }
-
-        
+        }        
     }
 }

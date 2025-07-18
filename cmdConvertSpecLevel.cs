@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.DB.Architecture;
 using ConvertSpecLevel.Common;
+using System.Linq;
 
 namespace ConvertSpecLevel
 {
@@ -284,416 +285,6 @@ namespace ConvertSpecLevel
             // notify user conversion successful
         }
 
-        #region Front Door Update
-
-        /// <summary>
-        /// Updates the front door type based on spec level
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <param name="specLevel">The spec level selection</param>
-        public static void UpdateFrontDoor(Document curDoc, string specLevel)
-        {
-            // Find the front door
-            FamilyInstance frontDoor = GetFrontDoor(curDoc);
-
-            if (frontDoor == null)
-            {
-                Utils.TaskDialogWarning("Warning", "Spec Conversion", "Front door not found.");
-                return;
-            }
-
-            // Always load the door family from library to get the most recent version
-            if (!LoadDoorFamilyFromLibrary(curDoc))
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to load door family from library.");
-                return;
-            }
-
-            // Determine the new door type based on spec level
-            string newDoorTypeName = GetFrontDoorType(specLevel);
-            if (string.IsNullOrEmpty(newDoorTypeName))
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to determine front door type for spec level: " + specLevel);
-                return;
-            }
-
-            // Find the new door family symbol
-            FamilySymbol newDoorSymbol = FindDoorSymbol(curDoc, newDoorTypeName);
-            if (newDoorSymbol == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Door type '{newDoorTypeName}' not found in the project after loading family.");
-                return;
-            }
-
-            // Activate the symbol if needed
-            if (!newDoorSymbol.IsActive)
-            {
-                newDoorSymbol.Activate();
-            }           
-
-            // Change the door type
-            frontDoor.Symbol = newDoorSymbol;
-
-            // notify the user
-            Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Front door updated to '{newDoorTypeName}' for {specLevel} spec level.");
-        }
-
-        /// <summary>
-        /// Always loads the front door family from the library to ensure most recent version
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <returns>True if family loaded successfully, false if loading failed</returns>
-        private static bool LoadDoorFamilyFromLibrary(Document curDoc)
-        {
-            string familyPath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors\LD_DR_Ext_Single 3_4 Lite_1 Panel.rfa";
-
-            // Check if family file exists
-            if (!System.IO.File.Exists(familyPath))
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Family file not found at: {familyPath}");
-                return false;
-            }
-
-            try
-            {
-                // Create family load options that overwrite existing family and all parameters
-                FamilyLoadOptions loadOptions = new FamilyLoadOptions();
-
-                // Always load the family from library with overwrite options
-                bool familyLoaded = curDoc.LoadFamily(familyPath, loadOptions, out Family loadedFamily);
-
-                return true; // consider success regardless of return value
-            }
-            catch (Exception ex)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Error loading family: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Family load options class to handle overwrite behavior
-        /// </summary>
-        public class FamilyLoadOptions : IFamilyLoadOptions
-        {
-            /// <summary>
-            /// Called when a family being loaded already exists in the project
-            /// </summary>
-            /// <param name="familyInUse">True if family is in use in the project</param>
-            /// <param name="overwriteParameterValues">Set to true to overwrite parameter values</param>
-            /// <returns>True to overwrite the existing family</returns>
-            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
-            {
-                // Always overwrite existing family and all its parameter values
-                overwriteParameterValues = true;
-                return true;
-            }
-
-            /// <summary>
-            /// Called when shared parameters are found
-            /// </summary>
-            /// <param name="sharedParameters">The shared parameters</param>
-            /// <param name="overwriteParameterValues">Set to true to overwrite parameter values</param>
-            /// <returns>True to continue loading</returns>
-            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
-            {
-                // Use the new family from the library and overwrite parameter values
-                source = FamilySource.Family;
-                overwriteParameterValues = true;
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// Finds the front door based on room relationships
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <returns>The front door instance or null if not found</returns>
-        public static FamilyInstance GetFrontDoor(Document curDoc)
-        {
-            // Get all doors in the document
-            List<FamilyInstance> allDoors = GetAllDoors(curDoc);
-
-            foreach (FamilyInstance curDoor in allDoors)
-            {
-                // Get the FromRoom and ToRoom properties
-                Room fromRoom = curDoor.FromRoom;
-                Room toRoom = curDoor.ToRoom;
-
-                if (fromRoom != null && toRoom != null)
-                {
-                    string fromRoomName = fromRoom.Name;
-                    string toRoomName = toRoom.Name;
-
-                    // Check if this matches front door criteria
-                    if (IsFrontDoorMatch(fromRoomName, toRoomName))
-                    {
-                        return curDoor;
-                    }
-                }
-            }
-
-            return null; // Front door not found
-        }
-
-        /// <summary>
-        /// Checks if the room names match front door criteria
-        /// </summary>
-        /// <param name="fromRoomName">The "From Room: Name" value</param>
-        /// <param name="toRoomName">The "To Room: Name" value</param>
-        /// <returns>True if this appears to be the front door</returns>
-        private static bool IsFrontDoorMatch(string fromRoomName, string toRoomName)
-        {
-            if (string.IsNullOrEmpty(fromRoomName) || string.IsNullOrEmpty(toRoomName))
-                return false;
-
-            // Check if From Room is Entry or Foyer
-            bool fromRoomMatch = fromRoomName.IndexOf("Entry", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                fromRoomName.IndexOf("Foyer", StringComparison.OrdinalIgnoreCase) >= 0;
-
-            // Check if To Room is Covered Porch
-            bool toRoomMatch = toRoomName.IndexOf("Covered Porch", StringComparison.OrdinalIgnoreCase) >= 0;
-
-            return fromRoomMatch && toRoomMatch;
-        }
-
-        /// <summary>
-        /// Gets all door instances in the document
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <returns>List of all door family instances</returns>
-        private static List<FamilyInstance> GetAllDoors(Document curDoc)
-        {
-            return new FilteredElementCollector(curDoc)
-                .OfCategory(BuiltInCategory.OST_Doors)
-                .OfClass(typeof(FamilyInstance))
-                .Cast<FamilyInstance>()
-                .ToList();
-        }
-
-        /// <summary>
-        /// Gets the front door type name based on spec level
-        /// </summary>
-        /// <param name="specLevel">The spec level</param>
-        /// <returns>The door type name</returns>
-        private static string GetFrontDoorType(string specLevel)
-        {
-            return specLevel switch
-            {
-                "Complete Home" => "36\"x80\"",     // CH uses 36"x80"
-                "Complete Home Plus" => "36\"x96\"", // CHP uses 36"x96"
-                _ => null
-            };
-        }
-
-        /// <summary>
-        /// Finds a door symbol by type name within the specific family
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <param name="typeName">The door type name (e.g., "36\"x80\"")</param>
-        /// <returns>The door symbol or null if not found</returns>
-        private static FamilySymbol FindDoorSymbol(Document curDoc, string typeName)
-        {
-            string familyName = "LD_DR_Ext_Single 3_4 Lite_1 Panel";
-
-            return new FilteredElementCollector(curDoc)
-                .OfCategory(BuiltInCategory.OST_Doors)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault(ds => ds.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase) &&
-                                      ds.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        #endregion
-
-        #region Rear Door Update
-
-        /// <summary>
-        /// Updates the rear door type based on spec level
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <param name="specLevel">The spec level selection</param>
-        public static void UpdateRearDoor(Document curDoc, string specLevel)
-        {
-            // Find the rear door
-            FamilyInstance rearDoor = GetRearDoor(curDoc);
-
-            if (rearDoor == null)
-            {
-                Utils.TaskDialogWarning("Warning", "Spec Conversion", "Rear door not found.");
-                return;
-            }
-
-            // Always load the door family from library to get the most recent version
-            if (!LoadRearDoorFamilyFromLibrary(curDoc, specLevel))
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to load rear door family from library.");
-                return;
-            }
-
-            // Get the door type name (always 32"x80" for both spec levels)
-            string newDoorTypeName = GetRearDoorType();
-
-            // Find the new door family symbol
-            FamilySymbol newDoorSymbol = FindRearDoorSymbol(curDoc, newDoorTypeName, specLevel);
-            if (newDoorSymbol == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Door type '{newDoorTypeName}' not found in the project after loading family.");
-                return;
-            }
-
-            // Activate the symbol if needed
-            if (!newDoorSymbol.IsActive)
-            {
-                newDoorSymbol.Activate();
-            }
-
-            // Store original swing parameter value
-            Parameter swingParam = rearDoor.LookupParameter("Swing");
-            string originalSwing = swingParam?.AsString();
-
-            // Change the door type
-            rearDoor.Symbol = newDoorSymbol;           
-
-            string familyName = GetRearDoorFamilyName(specLevel);
-            Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Rear door updated to '{familyName} - {newDoorTypeName}' for {specLevel} spec level.");
-        }
-
-        /// <summary>
-        /// Always loads the rear door family from the library to ensure most recent version
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <param name="specLevel">The spec level to determine which family to load</param>
-        /// <returns>True if family loaded successfully, false if loading failed</returns>
-        private static bool LoadRearDoorFamilyFromLibrary(Document curDoc, string specLevel)
-        {
-            string familyName = GetRearDoorFamilyName(specLevel);
-            string familyPath = $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors\{familyName}.rfa";
-
-            // Check if family file exists
-            if (!System.IO.File.Exists(familyPath))
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Rear door family file not found at: {familyPath}");
-                return false;
-            }
-
-            try
-            {
-                // Create family load options that overwrite existing family and all parameters
-                FamilyLoadOptions loadOptions = new FamilyLoadOptions();
-
-                // Always load the family from library with overwrite options
-                bool familyLoaded = curDoc.LoadFamily(familyPath, loadOptions, out Family loadedFamily);
-
-                return true; // Consider success regardless of return value
-            }
-            catch (Exception ex)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Error loading rear door family: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Gets the rear door family name based on spec level
-        /// </summary>
-        /// <param name="specLevel">The spec level</param>
-        /// <returns>The family name</returns>
-        private static string GetRearDoorFamilyName(string specLevel)
-        {
-            return specLevel switch
-            {
-                "Complete Home" => "LD_DR_Ext_Single_Half Lite_2 Panel",        // CH uses Half Lite 2 Panel
-                "Complete Home Plus" => "LD_DR_Ext_Single_Full Lite",           // CHP uses Full Lite
-                _ => null
-            };
-        }
-
-        /// <summary>
-        /// Finds the rear door based on width and description criteria
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <returns>The rear door instance or null if not found</returns>
-        public static FamilyInstance GetRearDoor(Document curDoc)
-        {
-            // Get all doors in the document
-            List<FamilyInstance> allDoors = GetAllDoors(curDoc);
-
-            foreach (FamilyInstance curDoor in allDoors)
-            {
-                // Check if this matches rear door criteria
-                if (IsRearDoorMatch(curDoor))
-                {
-                    return curDoor;
-                }
-            }
-
-            return null; // Rear door not found
-        }
-
-        /// <summary>
-        /// Checks if the door matches rear door criteria
-        /// </summary>
-        /// <param name="curDoor">The door to check</param>
-        /// <returns>True if this appears to be the rear door</returns>
-        private static bool IsRearDoorMatch(FamilyInstance curDoor)
-        {
-            // Check if door width is 32"
-            bool widthMatch = false;
-            Parameter widthParam = curDoor.get_Parameter(BuiltInParameter.DOOR_WIDTH);
-            if (widthParam != null)
-            {
-                // Convert from internal units (feet) to inches and check if it's 32"
-                double widthInFeet = widthParam.AsDouble();
-                double widthInInches = widthInFeet * 12.0;
-
-                // Check if width is approximately 32" (allowing for small tolerance)
-                widthMatch = Math.Abs(widthInInches - 32.0) < 0.1;
-            }
-
-            // Check if description contains "Exterior Entry"
-            bool descriptionMatch = false;
-            Parameter descParam = curDoor.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
-            if (descParam != null)
-            {
-                string description = descParam.AsString() ?? "";
-                descriptionMatch = description.IndexOf("Exterior Entry", StringComparison.OrdinalIgnoreCase) >= 0;
-            }
-
-            // Door must be 32" wide AND have "Exterior Entry" in description
-            return widthMatch && descriptionMatch;
-        }
-
-        /// <summary>
-        /// Gets the rear door type name (always 32"x80" for both spec levels)
-        /// </summary>
-        /// <returns>The door type name</returns>
-        private static string GetRearDoorType()
-        {
-            return "32\"x80\"";     // Both CH and CHP use 32"x80"
-        }
-
-        /// <summary>
-        /// Finds a rear door symbol by type name within the specific family for the spec level
-        /// </summary>
-        /// <param name="curDoc">The Revit document</param>
-        /// <param name="typeName">The door type name (32"x80")</param>
-        /// <param name="specLevel">The spec level to determine which family to search</param>
-        /// <returns>The door symbol or null if not found</returns>
-        private static FamilySymbol FindRearDoorSymbol(Document curDoc, string typeName, string specLevel)
-        {
-            string familyName = GetRearDoorFamilyName(specLevel);
-
-            return new FilteredElementCollector(curDoc)
-                .OfCategory(BuiltInCategory.OST_Doors)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault(ds => ds.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase) &&
-                                      ds.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        #endregion
-
         #region Finish Floor Methods
 
         /// <summary>
@@ -792,6 +383,279 @@ namespace ConvertSpecLevel
             // return the matching rooms
             return m_matchingRooms;
         }
+
+        #endregion
+
+        #region Door Methods
+
+        /// <summary>
+        /// Gets all door instances in the document
+        /// </summary>
+        /// <param name="curDoc">The Revit document</param>
+        /// <returns>List of all door family instances</returns>
+        private static List<FamilyInstance> GetAllDoors(Document curDoc)
+        {
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Doors)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Loads a door family from the library to ensure most recent version
+        /// </summary>
+        /// <param name="curDoc">The Revit document</param>
+        /// <param name="typeDoor">The type of door ("Front" or "Rear")</param>
+        /// <param name="specLevel">The spec level to determine which family to load</param>
+        /// <returns>True if family loaded successfully, false if loading failed</returns>
+        private static bool LoadDoorFamilyFromLibrary(Document curDoc, string typeDoor, string specLevel)
+        {
+            string familyName;
+
+            if (typeDoor == "Front")
+            {
+                familyName = "LD_DR_Ext_Single 3_4 Lite_1 Panel";
+            }
+            else if (typeDoor == "Rear")
+            {
+                familyName = GetRearDoorFamilyName(specLevel);
+            }
+            else
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Invalid door type: {typeDoor}");
+                return false;
+            }
+
+            string familyPath = $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors\{familyName}.rfa";
+
+            if (!System.IO.File.Exists(familyPath))
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Door family file not found at: {familyPath}");
+                return false;
+            }
+
+            try
+            {
+                var loadOptions = new FamilyLoadOptions();
+                bool familyLoaded = curDoc.LoadFamily(familyPath, loadOptions, out Family loadedFamily);
+                return familyLoaded;
+            }
+            catch (Exception ex)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error loading door family: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Family load options class to handle overwrite behavior
+        /// </summary>
+        public class FamilyLoadOptions : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            {
+                overwriteParameterValues = true;
+                return true;
+            }
+
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            {
+                source = FamilySource.Family;
+                overwriteParameterValues = true;
+                return true;
+            }
+        }
+
+        private static FamilySymbol FindDoorSymbol(Document curDoc, string typeName, string familyName)
+        {
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Doors)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .FirstOrDefault(ds => comparer.Equals(ds.Family.Name, familyName) &&
+                                      comparer.Equals(ds.Name, typeName));
+        }
+
+        #region Front Door Update
+
+        /// <summary>
+        /// Updates the front door type based on spec level
+        /// </summary>
+        /// <param name="curDoc">The Revit document</param>
+        /// <param name="specLevel">The spec level selection</param>
+        public static void UpdateFrontDoor(Document curDoc, string specLevel)
+        {
+            var frontDoor = GetFrontDoor(curDoc);
+            if (frontDoor == null)
+            {
+                Utils.TaskDialogWarning("Warning", "Spec Conversion", "Front door not found.");
+                return;
+            }
+
+            if (!LoadDoorFamilyFromLibrary(curDoc, "Front", specLevel))
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to load door family from library.");
+                return;
+            }
+
+            string newDoorTypeName = GetFrontDoorType(specLevel);
+            if (string.IsNullOrEmpty(newDoorTypeName))
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to determine front door type for spec level: " + specLevel);
+                return;
+            }
+
+            var newDoorSymbol = FindDoorSymbol(curDoc, newDoorTypeName, "LD_DR_Ext_Single 3_4 Lite_1 Panel");
+            if (newDoorSymbol == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Door type '{newDoorTypeName}' not found in the project after loading family.");
+                return;
+            }
+
+            if (!newDoorSymbol.IsActive)
+                newDoorSymbol.Activate();
+
+            frontDoor.Symbol = newDoorSymbol;            
+        }         
+
+        /// <summary>
+        /// Finds the front door based on room relationships
+        /// </summary>
+        /// <param name="curDoc">The Revit document</param>
+        /// <returns>The front door instance or null if not found</returns>
+        public static FamilyInstance GetFrontDoor(Document curDoc)
+        {
+            return GetAllDoors(curDoc)
+                .FirstOrDefault(door => IsFrontDoorMatch(door.FromRoom?.Name, door.ToRoom?.Name));
+        }
+
+        /// <summary>
+        /// Checks if the room names match front door criteria
+        /// </summary>
+        /// <param name="fromRoomName">The "From Room: Name" value</param>
+        /// <param name="toRoomName">The "To Room: Name" value</param>
+        /// <returns>True if this appears to be the front door</returns>
+        private static bool IsFrontDoorMatch(string fromRoomName, string toRoomName)
+        {
+            if (string.IsNullOrWhiteSpace(fromRoomName) || string.IsNullOrWhiteSpace(toRoomName))
+                return false;
+
+            bool fromRoomMatch = fromRoomName.Contains("Entry", StringComparison.OrdinalIgnoreCase) ||
+                                 fromRoomName.Contains("Foyer", StringComparison.OrdinalIgnoreCase);
+            bool toRoomMatch = toRoomName.Contains("Covered Porch", StringComparison.OrdinalIgnoreCase);
+
+            return fromRoomMatch && toRoomMatch;
+        }       
+
+        /// <summary>
+        /// Gets the front door type name based on spec level
+        /// </summary>
+        /// <param name="specLevel">The spec level</param>
+        /// <returns>The door type name</returns>
+        private static string GetFrontDoorType(string specLevel)
+        {
+            return specLevel switch
+            {
+                "Complete Home" => "36\"x80\"",
+                "Complete Home Plus" => "36\"x96\"",
+                _ => null
+            };
+        }       
+
+        #endregion
+
+        #region Rear Door Update
+
+        /// <summary>
+        /// Updates the rear door type based on spec level
+        /// </summary>
+        /// <param name="curDoc">The Revit document</param>
+        /// <param name="specLevel">The spec level selection</param>
+        public static void UpdateRearDoor(Document curDoc, string specLevel)
+        {
+            var rearDoor = GetRearDoor(curDoc);
+            if (rearDoor == null)
+            {
+                Utils.TaskDialogWarning("Warning", "Spec Conversion", "Rear door not found.");
+                return;
+            }
+
+            if (!LoadDoorFamilyFromLibrary(curDoc, "Rear", specLevel))
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to load rear door family from library.");
+                return;
+            }
+
+            string newDoorTypeName = GetRearDoorType();
+            var newDoorSymbol = FindDoorSymbol(curDoc, newDoorTypeName, GetRearDoorFamilyName(specLevel));
+            if (newDoorSymbol == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Door type '{newDoorTypeName}' not found in the project after loading family.");
+                return;
+            }
+
+            if (!newDoorSymbol.IsActive)
+                newDoorSymbol.Activate();
+
+            rearDoor.Symbol = newDoorSymbol;
+        }
+
+        /// <summary>
+        /// Gets the rear door family name based on spec level
+        /// </summary>
+        /// <param name="specLevel">The spec level</param>
+        /// <returns>The family name</returns>
+        private static string GetRearDoorFamilyName(string specLevel)
+        {
+            return specLevel switch
+            {
+                "Complete Home" => "LD_DR_Ext_Single_Half Lite_2 Panel",
+                "Complete Home Plus" => "LD_DR_Ext_Single_Full Lite",
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Finds the rear door based on width and description criteria
+        /// </summary>
+        /// <param name="curDoc">The Revit document</param>
+        /// <returns>The rear door instance or null if not found</returns>
+        public static FamilyInstance GetRearDoor(Document curDoc)
+        {
+            return GetAllDoors(curDoc).FirstOrDefault(IsRearDoorMatch);
+        }
+
+        /// <summary>
+        /// Checks if the door matches rear door criteria
+        /// </summary>
+        /// <param name="curDoor">The door to check</param>
+        /// <returns>True if this appears to be the rear door</returns>
+        private static bool IsRearDoorMatch(FamilyInstance curDoor)
+        {
+            // Check if door width is 32"
+            var widthParam = curDoor.get_Parameter(BuiltInParameter.DOOR_WIDTH);
+            bool widthMatch = widthParam != null &&
+                              Math.Abs((widthParam.AsDouble() * 12.0) - 32.0) < 0.1;
+
+            // Check if description contains "Exterior Entry"
+            var descParam = curDoor.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+            bool descriptionMatch = descParam?.AsString()?.Contains("Exterior Entry", StringComparison.OrdinalIgnoreCase) == true;
+
+            return widthMatch && descriptionMatch;
+        }
+
+        /// <summary>
+        /// Gets the rear door type name (always 32"x80" for both spec levels)
+        /// </summary>
+        /// <returns>The door type name</returns>
+        private static string GetRearDoorType()
+        {
+            return "32\"x80\"";
+        }
+
+        #endregion
 
         #endregion
 
