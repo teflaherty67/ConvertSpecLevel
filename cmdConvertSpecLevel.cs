@@ -15,7 +15,7 @@ namespace ConvertSpecLevel
             Document curDoc = uidoc.Document;
 
             // launch the form
-            frmConvertSpecLevel curForm = new frmConvertSpecLevel()
+            frmConvertSpecLevel curForm = new frmConvertSpecLevel(uidoc, curDoc)
             {
                 Topmost = true,
             };
@@ -32,6 +32,9 @@ namespace ConvertSpecLevel
             string selectedClient = curForm.GetSelectedClient();
             string selectedSpecLevel = curForm.GetSelectedSpecLevel();
             string selectedMWCabHeight = curForm.GetSelectedMWCabHeight();
+            
+            object selectedCabinet = curForm.SelectedCabinet; 
+           
 
             // create a transaction group
             using (TransactionGroup transGroup = new TransactionGroup(curDoc, "Convert Spec Level"))
@@ -147,6 +150,16 @@ namespace ConvertSpecLevel
                     return Result.Failed;
                 }
 
+                // create variable to hold the wall cabinet family
+                Family wallCabinetFamily = null;
+
+                // load the wall cabinet family
+                if (selectedSpecLevel == "Complete Home Plus")
+                {
+                    // load the wall cabinet family for Complete Home Plus spec level
+                    wallCabinetFamily = Utils.LoadFamilyFromLibrary(curDoc, "LD_Cab_Wall_Complete Home Plus");
+                }               
+
                 // create transaction for cabinet updates
                 using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
                 {
@@ -158,6 +171,14 @@ namespace ConvertSpecLevel
                     // revise the MW cabinet
 
                     // add/remove the Ref Sp cabinet
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        RemoveRefSpCabinet(curDoc, selectedCabinet);
+                    }
+                    else
+                    {
+                        AddRefSpCabinet(curDoc, wallCabinetFamily);
+                    }
 
                     // raise/lower the backsplash height
 
@@ -283,6 +304,17 @@ namespace ConvertSpecLevel
             return Result.Succeeded;
 
             // notify user conversion successful
+        }
+
+        private void AddRefSpCabinet(Document curDoc, Family wallCabinetFamily)
+        {
+            
+            throw new NotImplementedException();
+        }
+
+        private void RemoveRefSpCabinet(Document curDoc, object selectedCabinet)
+        {
+            throw new NotImplementedException();
         }
 
         #region Finish Floor Methods

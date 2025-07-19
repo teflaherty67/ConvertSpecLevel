@@ -208,6 +208,11 @@ namespace ConvertSpecLevel.Common
         internal static void UpdateLightingFixturesInActiveView(Document curDoc, string selectedSpecLevel)
         {
             throw new NotImplementedException();
-        }        
+        }
+
+        internal static Family LoadFamilyFromLibrary(Document curDoc, string v)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

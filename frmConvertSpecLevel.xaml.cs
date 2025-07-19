@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using ConvertSpecLevel.Common;
 
 namespace ConvertSpecLevel
 {
@@ -19,9 +20,25 @@ namespace ConvertSpecLevel
     /// </summary>
     public partial class frmConvertSpecLevel : Window
     {
-        public frmConvertSpecLevel()
+        // Properties to hold Revit references
+        public UIDocument UIDoc { get; set; }
+        public Document CurDoc { get; set; }
+
+        // properties for selected elements
+        public object SelectedCabinet { get; set; }
+        public object SelectedOutlet { get; set; }
+        public object SelectedRefSpWall { get; set; }
+        public object SelectedRefSp { get; set; }
+        public object SelectedOutletWall { get; set; }
+        public object SelectedGarageWall { get; set; }
+
+        public frmConvertSpecLevel(UIDocument uidoc, Document curDoc)
         {
             InitializeComponent();
+
+            // store the UIDocument and Document references
+            UIDoc = uidoc;
+            CurDoc = curDoc;
 
             // create a list of LGI division clients
             List<string> listClients = new List<string> { "Central Texas", "Dallas/Ft Worth",
@@ -123,10 +140,8 @@ namespace ConvertSpecLevel
                 // Hide the form so user can see Revit
                 this.Hide();
 
-                // TODO: Implement actual Revit cabinet selection logic here
-
-                // For now, simulate the selection
-                System.Threading.Thread.Sleep(1000);
+                // prompt the user to select the cabinet to delete
+                SelectedCabinet = UIDoc.Selection.PickObject(ObjectType.Element, new CabinetSelectionFilter(), "Select cabinet to remove");
 
                 // Update button text and appearance
                 btnDynamicRow1.Content = "Selected";
@@ -256,6 +271,20 @@ namespace ConvertSpecLevel
             {
                 System.Windows.MessageBox.Show("An error occurred while trying to display help: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+    }
+
+    internal class CabinetSelectionFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            // Allow only cabinets
+            return elem.Category != null && elem.Category.Name == "Casework";
+        }
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            // Allow all references
+            return true;
         }
     }
 }
