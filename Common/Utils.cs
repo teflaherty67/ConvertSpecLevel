@@ -1,9 +1,47 @@
 ﻿
 
+using static ConvertSpecLevel.cmdConvertSpecLevel;
+
 namespace ConvertSpecLevel.Common
 {
     internal static class Utils
     {
+        #region Families
+
+        internal static Family LoadFamilyFromLibrary(Document curDoc, String filePath, string familyName)
+        {
+            // create the full path to the family file
+            string familyPath = Path.Combine(filePath, familyName + ".rfa");
+
+            // Check if the family file exists at the specified path
+            if (!System.IO.File.Exists(familyPath))
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Family file not found at: {familyPath}");
+                return null;
+            }
+
+            try
+            {
+                var loadOptions = new FamilyLoadOptions();
+                curDoc.LoadFamily(familyPath, loadOptions, out Family loadedFamily);
+                return loadedFamily; // This will be null if loading failed
+            }
+            catch (Exception ex)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error loading family: {ex.Message}");
+                return null; // Return null if an error occurs during loading
+            }                    
+        }
+
+        internal static FamilySymbol GetFamilySymbolByName(Document curDoc, string newCabinetFamilyName, string newCabinetTypeName)
+        {
+            throw new NotImplementedException();
+        }
+
+
+
+
+        #endregion
         #region Ribbon Panel
         internal static RibbonPanel CreateRibbonPanel(UIControlledApplication app, string tabName, string panelName)
         {
@@ -210,14 +248,6 @@ namespace ConvertSpecLevel.Common
             throw new NotImplementedException();
         }
 
-        internal static Family LoadFamilyFromLibrary(Document curDoc, string v)
-        {
-            throw new NotImplementedException();
-        }
 
-        internal static FamilySymbol GetFamilySymbolByName(Document curDoc, string newCabinetFamilyName, string newCabinetTypeName)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

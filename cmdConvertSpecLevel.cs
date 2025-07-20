@@ -146,20 +146,8 @@ namespace ConvertSpecLevel
                 else
                 {
                     // if not found alert the user
-                    TaskDialog.Show("Error", "No Interior Elevation sheet found");
-                    transGroup.RollBack();
-                    return Result.Failed;
-                }
-
-                // create variable to hold the wall cabinet family
-                Family wallCabinetFamily = null;
-
-                // load the wall cabinet family
-                if (selectedSpecLevel == "Complete Home Plus")
-                {
-                    // load the wall cabinet family for Complete Home Plus spec level
-                    wallCabinetFamily = Utils.LoadFamilyFromLibrary(curDoc, "LD_Cab_Wall_Complete Home Plus");
-                }               
+                   Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
+                }                             
 
                 // create transaction for cabinet updates
                 using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
@@ -180,6 +168,7 @@ namespace ConvertSpecLevel
                     }
 
                     // revise the MW cabinet
+                    ReplaceMWCabiinet(curDoc, selectedMWCabHeight);
 
                     // add/remove the Ref Sp cabinet
                     if (selectedSpecLevel == "Complete Home" && curForm.SelectedCabinet != null)
@@ -188,7 +177,7 @@ namespace ConvertSpecLevel
                     }
                     else
                     {
-                        AddRefSpCabinet(curDoc, wallCabinetFamily);
+                        AddRefSpCabinet(curDoc);
                     }
 
                     // raise/lower the backsplash height
@@ -317,11 +306,13 @@ namespace ConvertSpecLevel
             // notify user conversion successful
         }
 
+        
+
         private void ReplaceWallCabinets(Document curDoc, string cabHeight)
         {
             // load the new cabinet families
-            Utils.LoadFamilyFromLibrary(curDoc, "LD_CW_Wall_1-Dr_Flush");
-            Utils.LoadFamilyFromLibrary(curDoc, "LD_CW_Wall_2-Dr_Flush");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_1-Dr_Flush");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
 
             // get all wall cabinets in the document
             List<FamilyInstance> m_allWallCabs = GetAllStandardWallCabinets(curDoc);
@@ -404,16 +395,91 @@ namespace ConvertSpecLevel
                 .OfClass(typeof(FamilyInstance))
                 .Cast<FamilyInstance>()
                 .Where(cab => cab.Symbol.Family.Name.Contains("Wall") && 
-                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")))
+                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")) &&
+                              cab.Symbol.Name.Split('x').Length == 2)
+                .ToList();
+        }      
+
+        private void ReplaceMWCabiinet(Document curDoc, string selectedMWCabHeight)
+        {
+            // get all wall cabinets with non-standard depth in the document
+            List<FamilyInstance> m_allMWCabs = GetAllNonStandardWallCabinets(curDoc);
+
+            // declare variables
+            FamilyInstance curMWCab = null;
+            string curWidth = "";
+            string curDepth = "";
+
+            // loop through the list and find the one being used for the MW cabinet (30" wide x 15" deep)
+            foreach(FamilyInstance curCab in  m_allMWCabs)
+            {
+                // parse the type name
+                curWidth = curCab.Symbol.Name.Split('x')[0];
+                curDepth = curCab.Symbol.Name.Split("x")[2];
+
+                if (curWidth == "30\"" && curDepth == "15\"")
+                {
+                    curMWCab = curCab;
+                    break;
+                }
+                else
+                    continue;
+            }
+
+            // null check for cabinet found
+            if (curMWCab == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "No MW cabinet found in the project.");
+                return;
+            }
+
+            // get the current cabinet type name
+            string curMWCabName = curMWCab.Symbol.Name;
+
+            // create a string variable for the new cabinet type name
+            string newMWCabTypeName = $"{curWidth}x{selectedMWCabHeight}x{curDepth}\"";
+
+            // create the new cabinet type name based on the selected height
+            FamilySymbol newMWCab = Utils.GetFamilySymbolByName(curDoc, "LD_CW_Wall_2-Dr_Flush", newMWCabTypeName);
+            
+            // null check for the new cabinet type
+            if (newMWCab == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Cabinet type '{newMWCabTypeName}' not found in the project after loading family.");
+                return;
+            }
+
+            // check if the new cabinet type is active
+            if (!newMWCab.IsActive)
+            {
+                newMWCab.Activate();
+            }
+
+            // replace the cabinet type
+            curMWCab.Symbol = newMWCab;
+
+            // create variable for the new MW cabinet family name
+            string newMWCabFamilyName = curMWCab.Symbol.Family.Name;
+
+            // notify the user that the MW cabinet was updated
+            Utils.TaskDialogInformation("Complete", "Spec Conversion", 
+                $"The MW cabinet was updated to {newMWCabFamilyName}:{newMWCabTypeName} per the selected height.");            
+        }
+
+        private List<FamilyInstance> GetAllNonStandardWallCabinets(Document curDoc)
+        {
+            // get all wall cabinets in the document
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Casework)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(cab => cab.Symbol.Family.Name.Contains("Wall") &&
+                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")) &&
+                              cab.Symbol.Name.Split('x').Length == 3)
                 .ToList();
         }
 
-        private void RemoveRefSpCabinet(Document curDoc, object selectedCabinet)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void AddRefSpCabinet(Document curDoc, Family wallCabinetFamily)
+        private void AddRefSpCabinet(Document curDoc)
         {
 
             throw new NotImplementedException();
