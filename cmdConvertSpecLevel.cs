@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.DB.Architecture;
 using ConvertSpecLevel.Common;
+using System.ComponentModel;
 using System.Linq;
 
 namespace ConvertSpecLevel
@@ -167,13 +168,23 @@ namespace ConvertSpecLevel
                     t.Start();
 
                     // revise the upper cabinets
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        // lower the upper cabinets to 36"
+                        ReplaceWallCabinets(curDoc, "36");
+                    }
+                    else
+                    {
+                        // raise the upper cabinets to 42"
+                        ReplaceWallCabinets(curDoc, "42");
+                    }
 
                     // revise the MW cabinet
 
                     // add/remove the Ref Sp cabinet
-                    if (selectedSpecLevel == "Complete Home")
+                    if (selectedSpecLevel == "Complete Home" && curForm.SelectedCabinet != null)
                     {
-                        RemoveRefSpCabinet(curDoc, selectedCabinet);
+                        curDoc.Delete(((Element)curForm.SelectedCabinet).Id);
                     }
                     else
                     {
@@ -306,14 +317,105 @@ namespace ConvertSpecLevel
             // notify user conversion successful
         }
 
-        private void AddRefSpCabinet(Document curDoc, Family wallCabinetFamily)
+        private void ReplaceWallCabinets(Document curDoc, string cabHeight)
         {
-            
-            throw new NotImplementedException();
+            // load the new cabinet families
+            Utils.LoadFamilyFromLibrary(curDoc, "LD_CW_Wall_1-Dr_Flush");
+            Utils.LoadFamilyFromLibrary(curDoc, "LD_CW_Wall_2-Dr_Flush");
+
+            // get all wall cabinets in the document
+            List<FamilyInstance> m_allWallCabs = GetAllStandardWallCabinets(curDoc);
+
+            // loop through the wall cabinet instances
+            foreach(FamilyInstance curCabinet in m_allWallCabs)
+            {
+                if(curCabinet.Symbol.Family.Name.Contains("Single"))
+                {
+                    // create string variable for new cabinet family name
+                    string newCabinetFamilyName = "LD_CW_Wall_1-Dr_Flush";
+
+                    // get the current cabinet type name
+                    string curCabinetTypeName = curCabinet.Symbol.Name;
+
+                    // get the new cabinet type based on the spec level height
+                    string[] curDimensions = curCabinetTypeName.Split('x');
+                    string curWidth = curDimensions[0].Trim();
+                    string newCabinetTypeName = curWidth + "x" + cabHeight + "\"";
+
+                    // add single door cabinet replacement logic
+                    FamilySymbol newCabinetType = Utils.GetFamilySymbolByName(curDoc, newCabinetFamilyName, newCabinetTypeName);
+
+                    // null check for the new cabinet type
+                    if (newCabinetType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Cabinet type '{newCabinetTypeName}' not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new cabinet type is active
+                    if (!newCabinetType.IsActive)
+                    {
+                        newCabinetType.Activate();
+                    }
+
+                    // replace the cabinet type
+                    curCabinet.Symbol = newCabinetType;
+                }
+                else
+                {
+                    // create string variable for new cabinet family name
+                    string newCabinetFamilyName = "LD_CW_Wall_2-Dr_Flush";
+
+                    // get the current cabinet type name
+                    string curCabinetTypeName = curCabinet.Symbol.Name;
+
+                    // get the new cabinet type based on the spec level height
+                    string[] curDimensions = curCabinetTypeName.Split('x');
+                    string curWidth = curDimensions[0].Trim();
+                    string newCabinetTypeName = curWidth + "x" + cabHeight + "\"";
+
+                    // add double door cabinet replacement logic
+                    FamilySymbol newCabinetType = Utils.GetFamilySymbolByName(curDoc, newCabinetFamilyName, newCabinetTypeName);
+
+                    // null check for the new cabinet type
+                    if (newCabinetType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Cabinet type '{newCabinetTypeName}' not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new cabinet type is active
+                    if (!newCabinetType.IsActive)
+                    {
+                        newCabinetType.Activate();
+                    }
+
+                    // replace the cabinet type
+                    curCabinet.Symbol = newCabinetType;
+                }
+            }          
+        }
+
+        private List<FamilyInstance> GetAllStandardWallCabinets(Document curDoc)
+        {
+            // get all wall cabinets in the document
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Casework)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(cab => cab.Symbol.Family.Name.Contains("Wall") && 
+                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")))
+                .ToList();
         }
 
         private void RemoveRefSpCabinet(Document curDoc, object selectedCabinet)
         {
+            throw new NotImplementedException();
+        }
+
+        private void AddRefSpCabinet(Document curDoc, Family wallCabinetFamily)
+        {
+
             throw new NotImplementedException();
         }
 

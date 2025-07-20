@@ -214,5 +214,10 @@ namespace ConvertSpecLevel.Common
         {
             throw new NotImplementedException();
         }
+
+        internal static FamilySymbol GetFamilySymbolByName(Document curDoc, string newCabinetFamilyName, string newCabinetTypeName)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
