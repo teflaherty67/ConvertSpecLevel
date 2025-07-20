@@ -181,6 +181,9 @@ namespace ConvertSpecLevel
                     }
 
                     // raise/lower the backsplash height
+                    UpdateBacksplashHeight(curDoc, selectedSpecLevel);
+
+                    UpdateBacksplashNote(curDoc, selectedSpecLevel);
 
                     // notify the user
                     // upper cabinets were revised per the selected spec level
@@ -306,7 +309,107 @@ namespace ConvertSpecLevel
             // notify user conversion successful
         }
 
-        
+        private void UpdateBacksplashNote(Document curDoc, string selectedSpecLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void UpdateBacksplashHeight(Document curDoc, string selectedSpecLevel)
+        {
+            // load the new counter & backsplash families
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Counter_Top-Mount");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Backsplash");
+
+            // get all generic model instances in the document
+            List<FamilyInstance> m_allGenericModels = Utils.GetAllGenericFamilies(curDoc);
+
+            // filter the list for counter tops and backsplashes
+            List<FamilyInstance> listBacksplashGMs = m_allGenericModels
+                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Name.Contains("Kitchen Backsplash"))
+                .ToList();
+
+            // null check for the list
+            if (listBacksplashGMs == null || !listBacksplashGMs.Any())
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "No Kitchen Counter or Backsplash generic models found in the project.");
+                return;
+            }
+
+            // loop through the list and update the height based on the spec level
+            foreach (FamilyInstance curGM in listBacksplashGMs)
+            {
+                // get the current type name
+                string curTypeName = curGM.Symbol.Name;
+
+                // replace the famile instance based on the current name
+                if (curTypeName.Contains("Kichen Counter"))
+                {                     
+                    // get the new counter type
+                    FamilySymbol newCounterType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Counter_Top-Mount", "Type 1");
+
+                    // null check for the new counter type
+                    if (newCounterType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Counter type not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new counter type is active
+                    if (!newCounterType.IsActive)
+                    {
+                        newCounterType.Activate();
+                    }
+
+                    // replace the family instance
+                    curGM.Symbol = newCounterType;
+
+                    // set the height based on the spec level
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        // set the height to 4"
+                        curGM.Symbol.LookupParameter("Backsplash Height").Set(4.0/12.0);
+                    }
+                    else
+                    {
+                        // set the height to 18"
+                        curGM.Symbol.LookupParameter("Backsplash Height").Set(18.0/12.0);
+                    }
+                }
+                else if (curTypeName.Contains("Kitchen Backsplash"))
+                {                    
+                    // get the new backsplash type
+                    FamilySymbol newBacksplashType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Backsplash", "Type 1");
+
+                    // null check for the new backsplash type
+                    if (newBacksplashType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Backsplash type not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new backsplash type is active
+                    if (!newBacksplashType.IsActive)
+                    {
+                        newBacksplashType.Activate();
+                    }
+
+                    // replace the family instance
+                    curGM.Symbol = newBacksplashType;
+
+                    // set the height based on the spec level
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        // set the height to 4"
+                        curGM.Symbol.LookupParameter("Height").Set(4.0 / 12.0);
+                    }
+                    else
+                    {
+                        // set the height to 18"
+                        curGM.Symbol.LookupParameter("Height").Set(18.0 / 12.0);
+                    }
+                }
+            }
+        }
 
         private void ReplaceWallCabinets(Document curDoc, string cabHeight)
         {

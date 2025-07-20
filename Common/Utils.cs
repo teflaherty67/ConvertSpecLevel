@@ -38,6 +38,25 @@ namespace ConvertSpecLevel.Common
             throw new NotImplementedException();
         }
 
+        public static List<FamilyInstance> GetAllGenericFamilies(Document curDoc)
+        {
+            ElementClassFilter m_famFilter = new ElementClassFilter(typeof(FamilyInstance));
+            ElementCategoryFilter m_typeFilter = new ElementCategoryFilter(BuiltInCategory.OST_GenericModel);
+            LogicalAndFilter andFilter = new LogicalAndFilter(m_famFilter, m_typeFilter);
+
+            FilteredElementCollector m_colGM = new FilteredElementCollector(curDoc);
+            m_colGM.WherePasses(andFilter);
+
+            List<FamilyInstance> m_famList = new List<FamilyInstance>();
+
+            foreach (FamilyInstance curFam in m_colGM)
+            {
+                m_famList.Add(curFam);
+            }
+
+            return m_famList;
+        }
+
 
 
 
