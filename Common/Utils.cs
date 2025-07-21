@@ -247,6 +247,64 @@ namespace ConvertSpecLevel.Common
 
         #endregion
 
+        #region Text Notes
+
+        public static List<TextNoteType> GetAllTextNoteTypes(Document curDoc)
+        {
+            List<TextNoteType> returnList = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(TextNoteType))
+                .Cast<TextNoteType>()
+                .ToList();
+
+            return returnList;
+        }
+
+        public static TextNoteType GetTextNoteTypeByName(Document curDoc, string name)
+        {
+            List<TextNoteType> textNoteList = GetAllTextNoteTypes(curDoc).ToList();
+
+            return textNoteList.FirstOrDefault(curStyle => curStyle.Name == name);
+        }
+
+        #endregion
+
+        #region Views
+
+        public static List<View> GetAllViews(Document curDoc)
+        {
+            FilteredElementCollector m_colviews = new FilteredElementCollector(curDoc);
+            m_colviews.OfCategory(BuiltInCategory.OST_Views);
+
+            List<View> m_views = new List<View>();
+            foreach (View x in m_colviews.ToElements())
+            {
+                m_views.Add(x);
+            }
+
+            return m_views;
+        }
+
+        public static List<View> GetAllSectionViews(Document m_doc)
+        {
+            //get all views
+            FilteredElementCollector m_colViews = new FilteredElementCollector(m_doc);
+            m_colViews.OfCategory(BuiltInCategory.OST_Views);
+            m_colViews.OfClass(typeof(ViewSection));
+
+            List<View> m_Views = new List<View>();
+            foreach (View x in m_colViews)
+            {
+                if (x.IsTemplate == false)
+                {
+                    m_Views.Add(x);
+                }
+            }
+
+            return m_Views;
+        }
+
+        #endregion
+
         internal static List<View> GetAllViewsByNameContainsAndAssociatedLevel(Document curDoc, string v1, string v2)
         {
             throw new NotImplementedException();
@@ -267,6 +325,6 @@ namespace ConvertSpecLevel.Common
             throw new NotImplementedException();
         }
 
-
+       
     }
 }

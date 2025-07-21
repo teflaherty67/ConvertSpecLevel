@@ -183,7 +183,7 @@ namespace ConvertSpecLevel
                     // raise/lower the backsplash height
                     UpdateBacksplashHeight(curDoc, selectedSpecLevel);
 
-                    UpdateBacksplashNote(curDoc, selectedSpecLevel);
+                    UpdateBacksplashNote(curDoc, uidoc, selectedSpecLevel);
 
                     // notify the user
                     // upper cabinets were revised per the selected spec level
@@ -309,9 +309,101 @@ namespace ConvertSpecLevel
             // notify user conversion successful
         }
 
-        private void UpdateBacksplashNote(Document curDoc, string selectedSpecLevel)
+        private void UpdateBacksplashNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel)
         {
-            throw new NotImplementedException();
+            // get the selected spec level
+            if (selectedSpecLevel == "Complete Home")
+            {
+                // get all text notes & filter for backsplash note
+                List<TextNote> backsplashNotes = new FilteredElementCollector(curDoc)
+                    .OfClass(typeof(TextNote))
+                    .Cast<TextNote>()
+                    .Where(note => note.Text.Contains("Full Tile Backsplash"))
+                    .ToList();
+
+                // check if any backsplash notes were found
+                if (backsplashNotes == null || !backsplashNotes.Any())
+                {
+                    // continue if no backsplash notes found
+                    return;
+                }
+
+                // loop through and delete each note
+                foreach (TextNote curNote in backsplashNotes)
+                {
+                    curDoc.Delete(curNote.Id);
+                }
+            }
+            else if (selectedSpecLevel == "Complete Home Plus")
+            {
+                // get the TextNoteType
+                TextNoteType backsplashNoteType = Utils.GetTextNoteTypeByName(curDoc, "STANDARD");
+
+                // null check for the TextNoteType
+                if (backsplashNoteType == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Text Note Type 'STANDARD' not found in the project.");
+                    return;
+                }
+
+                // get all the interior elevation views
+                List<ViewSection> allIntElevs = GetAllIntElevViews(curDoc);
+
+                // check if any interior elevation views were found
+                if (allIntElevs == null || !allIntElevs.Any())
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevation views found in the project.");
+                    return;
+                }
+
+                // loop through each interior elevation views & add the backsplash note
+                foreach(ViewSection curIntElev in allIntElevs)
+                {
+                    // set the active view
+                    uidoc.ActiveView = curIntElev;
+
+                    // set the text note location
+
+                    // get the view boundaries
+                    BoundingBoxXYZ curViewBounds = curIntElev.get_BoundingBox(curIntElev);
+
+                    // calculate center point, 1' below bottom of bounding box
+                    XYZ centerPoint = new XYZ(
+                        (curViewBounds.Min.X + curViewBounds.Max.X) / 2, // horizontal center
+                        curViewBounds.Min.Y - 1.0, // 1' below the bottom of the bounding box
+                        0); // Z = 0 for view plane
+
+                    try
+                    {                       
+                        // create a new text note
+                        TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, centerPoint, "Full Tile Backsplash", backsplashNoteType.Id);
+
+                        // set text note properties
+                        backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
+                        backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+
+                        // add leader lines
+                        Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
+                        Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Error creating backsplash note in view {curIntElev.Name}: {ex.Message}");
+                        continue;
+                    }
+                }
+            }
+        }
+
+        private List<ViewSection> GetAllIntElevViews(Document curDoc)
+        {
+            // get all the ViewSection views and filter for Interior Elevaitons named Kitchen
+            List<ViewSection> m_allIntElevs= Utils.GetAllSectionViews(curDoc)
+                .OfType<ViewSection>()
+                .Where(view => view.Name.Contains("Kitchen") && view.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.AsString() == "Kitchen")
+                .ToList();
+            
+            return m_allIntElevs;
         }
 
         private void UpdateBacksplashHeight(Document curDoc, string selectedSpecLevel)
