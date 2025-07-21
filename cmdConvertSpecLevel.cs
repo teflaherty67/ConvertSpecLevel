@@ -241,16 +241,15 @@ namespace ConvertSpecLevel
                         // add/remove the sprinkler outlet in the Garage
 
                         // add/remove the ceiling fan note in the views
-                        ManageClgFanNotes(curDoc, selectedSpecLevel, firstFloorElecViews);
+                        ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         // add/remove sprinkler outlet note
-                        ManageSprinklerOutletNote(curDoc, selectedSpecLevel);
+                        ManageSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         // commit the transaction
                         t.Commit();
                     }
                 }
-
                 else
                 {
                     // if not found alert the user
@@ -291,7 +290,7 @@ namespace ConvertSpecLevel
                     UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
 
                     // add/remove the ceiling fan note in the views
-                    ManageClgFanNotes(curDoc, selectedSpecLevel);
+                    ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, secondFloorElecViews);
 
                     // commit the transaction
                     t.Commit();
@@ -309,14 +308,6 @@ namespace ConvertSpecLevel
 
             // notify user conversion successful
         }
-
-        private void ManageSprinklerOutletNote(Document curDoc, string selectedSpecLevel)
-        {
-            throw new NotImplementedException();
-        }
-
-
-
 
         #region Finish Floor Methods
 
@@ -1221,7 +1212,7 @@ namespace ConvertSpecLevel
         /// <summary>
         /// Manages ceiling fan notes in specified rooms based on spec level conversion
         /// </summary>        
-        public static void ManageClgFanNotes(Document curDoc, string specLevel, List<View> firstFloorElecViews)
+        public static void ManageClgFanNotes(Document curDoc, UIDocument uidoc, string specLevel, List<View> firstFloorElecViews)
         {
             // Define rooms that need note management
             List<string> roomsToUpdate = new List<string>
@@ -1238,20 +1229,49 @@ namespace ConvertSpecLevel
             foreach (View curView in firstFloorElecViews)
             {
                 // Set the active view
-                curDoc.ActiveView = curView;
+                uidoc.ActiveView = curView;
 
                 if (specLevel == "Complete Home Plus")
                 {
-                    // CH to CHP conversion - DELETE notes in all rooms
+                    // CHP to CH conversion - DELETE notes in all rooms
                     DeleteCeilingFanNotes(curDoc, roomsToUpdate, noteText);
                 }
                 else if (specLevel == "Complete Home")
                 {
-                    // CHP to CH conversion - ADD notes in all rooms EXCEPT Covered Patio
+                    // CH to CHP conversion - ADD notes in all rooms EXCEPT Covered Patio
                     List<string> roomsForNotes = roomsToUpdate.Where(r => r != "Covered Patio").ToList();
                     AddCeilingFanNotes(curDoc, roomsForNotes, noteText);
                 }                
             }
+        }
+
+        private void ManageSprinklerOutletNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel, List<View> firstFloorElecViews)
+        {
+            string noteText = "Dedicated outlet for sprinkler system @ 60\" AFF";
+
+            // CHP to CH conversion - delete sprinkler note in garage
+            var sprinklerNotes = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(TextNote))
+                .Cast<TextNote>()
+                .Where(note => note.Text.Contains("Sprinkler", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (TextNote curNote in sprinklerNotes)
+            {
+                curDoc.Delete(curNote.Id);
+            }
+
+            foreach (View curView in firstFloorElecViews)
+            {
+               if (selectedSpecLevel == "Complete Home")
+               {
+                    // list of rooms to add the note
+                    List<string> roomsForNotes = new List<string> { "Master Bedroom", "Gameroom", "Loft" };
+
+                    // CH to CHP conversion - ADD notes in all rooms EXCEPT Covered Patio
+                    AddCeilingFanNotes(curDoc, roomsForNotes, noteText);
+               }
+            }                
         }
 
         /// <summary>
@@ -1384,7 +1404,7 @@ namespace ConvertSpecLevel
             {
                 return false;
             }
-        }
+        }      
 
         #endregion
 
