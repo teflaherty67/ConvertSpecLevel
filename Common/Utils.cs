@@ -1,5 +1,7 @@
 ﻿
 
+using Autodesk.Revit.DB.Architecture;
+using System.Windows.Media;
 using static ConvertSpecLevel.cmdConvertSpecLevel;
 
 namespace ConvertSpecLevel.Common
@@ -57,10 +59,27 @@ namespace ConvertSpecLevel.Common
             return m_famList;
         }
 
+         /// <summary>
+        /// Family load options class to handle overwrite behavior
+        /// </summary>
+        public class FamilyLoadOptions : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            {
+                overwriteParameterValues = true;
+                return true;
+            }
 
-
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            {
+                source = FamilySource.Family;
+                overwriteParameterValues = true;
+                return true;
+            }
+        }
 
         #endregion
+
         #region Ribbon Panel
         internal static RibbonPanel CreateRibbonPanel(UIControlledApplication app, string tabName, string panelName)
         {
@@ -85,6 +104,56 @@ namespace ConvertSpecLevel.Common
 
             return null;
         }
+
+        #endregion
+
+        #region Rooms
+
+        /// <summary>
+        /// Retrieves all rooms from the document whose names contain the specified string,
+        /// and filters out rooms with zero or invalid area.
+        /// </summary>        
+        internal static List<Room> GetRoomByNameContains(Document curDoc, string nameRoom)
+        {
+            // Retrieve all rooms in the document
+            List<Room> m_roomList = GetAllRooms(curDoc);
+
+            // Initialize the list to hold the matching rooms
+            List<Room> m_returnList = new List<Room>();
+
+            // Iterate through all rooms
+            foreach (Room curRoom in m_roomList)
+            {
+                // Check if the room name contains the specified substring
+                if (curRoom != null &&
+                curRoom.Name != null &&
+                curRoom.Name.IndexOf(nameRoom, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // Check if the room has a valid area (greater than 0)
+                    if (curRoom.Area > 0)
+                    {
+                        // Add the room to the result list
+                        m_returnList.Add(curRoom);
+                    }
+                }
+            }
+
+            // Return the filtered list of rooms
+            return m_returnList;
+        }
+
+
+        /// <summary>
+        /// Retrieves all <see cref="Room"/> elements from the specified Revit document.
+        /// </summary>        
+        public static List<Room> GetAllRooms(Document curDoc)
+        {
+            return new FilteredElementCollector(curDoc)         // Initialize a collector for the given document
+                .OfCategory(BuiltInCategory.OST_Rooms)           // Filter elements to include only Rooms
+                .Cast<Room>()                                    // Cast the elements to Room type
+                .ToList();                                       // Convert the collection to a List<Room> and return
+        }
+
 
         #endregion
 
@@ -318,13 +387,47 @@ namespace ConvertSpecLevel.Common
         internal static ViewSheet GetViewSheetByName(Document curDoc, string v)
         {
             throw new NotImplementedException();
-        }      
+        }
 
-        internal static void UpdateLightingFixturesInActiveView(Document curDoc, string selectedSpecLevel)
+        /// <summary>
+        /// Finds a family symbol by family name and type name
+        /// </summary>        
+        /// <returns>The family symbol or null if not found</returns>
+        internal static FamilySymbol FindFamilySymbol(Document curDoc, string familyName, string typeName)
+        {
+            return new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .FirstOrDefault(fs => fs.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase) &&
+                                     fs.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Gets the center point of a room for note placement
+        /// </summary>
+        /// <returns>The center point or null if not found</returns>
+        internal static XYZ GetRoomCenterPoint(Room curRoom)
+        {
+            try
+            {
+                LocationPoint location = curRoom.Location as LocationPoint;
+                return location?.Point;
+            }
+            catch
+            {
+                // Fallback: use bounding box center
+                var bbox = curRoom.get_BoundingBox(null);
+                if (bbox != null)
+                {
+                    return (bbox.Min + bbox.Max) / 2;
+                }
+                return null;
+            }
+        }
+
+        internal static List<View> GetAllViewsByNameContains(Document curDoc, string v)
         {
             throw new NotImplementedException();
         }
-
-       
     }
 }
