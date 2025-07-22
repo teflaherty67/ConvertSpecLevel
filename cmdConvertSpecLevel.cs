@@ -39,6 +39,9 @@ namespace ConvertSpecLevel
             
             object selectedCabinet = curForm.SelectedCabinet;
 
+            Reference selectedSprinklerWall = curForm.SelectedOutletWall;
+            Reference selectedGarageWall = curForm.SelectedGarageWall;
+
             #endregion
 
             #region Transaction Group
@@ -239,6 +242,7 @@ namespace ConvertSpecLevel
                         UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
 
                         // add/remove the sprinkler outlet in the Garage
+                        AddSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall);
 
                         // add/remove the ceiling fan note in the views
                         ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
@@ -307,6 +311,11 @@ namespace ConvertSpecLevel
             return Result.Succeeded;
 
             // notify user conversion successful
+        }
+
+        private void AddSprinklerOutlet(Document curDoc, UIDocument uidoc, string selectedSpecLevel, Reference selectedSprinklerWall, Reference selectedGarageWall)
+        {
+            throw new NotImplementedException();
         }
 
         #region Finish Floor Methods
@@ -1245,35 +1254,6 @@ namespace ConvertSpecLevel
             }
         }
 
-        private void ManageSprinklerOutletNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel, List<View> firstFloorElecViews)
-        {
-            string noteText = "Dedicated outlet for sprinkler system @ 60\" AFF";
-
-            // CHP to CH conversion - delete sprinkler note in garage
-            var sprinklerNotes = new FilteredElementCollector(curDoc)
-                .OfClass(typeof(TextNote))
-                .Cast<TextNote>()
-                .Where(note => note.Text.Contains("Sprinkler", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            foreach (TextNote curNote in sprinklerNotes)
-            {
-                curDoc.Delete(curNote.Id);
-            }
-
-            foreach (View curView in firstFloorElecViews)
-            {
-               if (selectedSpecLevel == "Complete Home")
-               {
-                    // list of rooms to add the note
-                    List<string> roomsForNotes = new List<string> { "Master Bedroom", "Gameroom", "Loft" };
-
-                    // CH to CHP conversion - ADD notes in all rooms EXCEPT Covered Patio
-                    AddCeilingFanNotes(curDoc, roomsForNotes, noteText);
-               }
-            }                
-        }
-
         /// <summary>
         /// Deletes ceiling fan notes from specified rooms
         /// </summary>       
@@ -1404,7 +1384,76 @@ namespace ConvertSpecLevel
             {
                 return false;
             }
-        }      
+        }
+
+        private void ManageSprinklerOutletNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel, List<View> firstFloorElecViews)
+        {
+            string noteText = "Dedicated outlet for sprinkler system @ 60\" AFF";
+
+            // CHP to CH conversion - delete sprinkler note in garage
+            var sprinklerNotes = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(TextNote))
+                .Cast<TextNote>()
+                .Where(note => note.Text.Contains("Sprinkler", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (TextNote curNote in sprinklerNotes)
+            {
+                curDoc.Delete(curNote.Id);
+            }
+
+            foreach (View curView in firstFloorElecViews)
+            {
+               if (selectedSpecLevel == "Complete Home Plus")
+               {
+                    // set the active view
+                    uidoc.ActiveView = curView;
+
+                    // find the garage in the active view
+                    Room garageRoom = Utils.GetRoomByNameContainsInActiveView(curDoc, curView, "Garage").FirstOrDefault();
+
+                    if (garageRoom != null)
+                    {
+                        // CH to CHP conversion - add sprinkler note to Garage
+                        AddSprinklerOutletNotes(curDoc, garageRoom, noteText);  // Single room, not list
+                    }
+                }
+            }                
+        }
+
+        private void AddSprinklerOutletNotes(Document curDoc, Room garageRoom, string noteText)
+        {
+            // get the TextNoteType
+            TextNoteType textNoteType = Utils.GetTextNoteTypeByName(curDoc, "STANDARD");
+
+            // null check for the TextNoteType
+            if (textNoteType == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Text Note Type 'STANDARD' not found in the project.");
+                return;
+            }
+
+            // check if note already exists
+            List<TextNote> existingNotes = GetTextNotesInRoom(curDoc, garageRoom, noteText);
+
+            if (existingNotes.Count > 0)
+            {
+                return; // Note already exists, skip
+            }
+
+            // insertion point for note placement
+            XYZ roomCenter = Utils.GetRoomCenterPoint(garageRoom);
+
+            // null check for room center
+            if (roomCenter != null)
+            {
+                // Create point 2' below room center
+                XYZ notePosition = new XYZ(roomCenter.X, roomCenter.Y - 2.0, roomCenter.Z);
+
+                // Create the text note
+                TextNote.Create(curDoc, curDoc.ActiveView.Id, notePosition, noteText, textNoteType.Id);                
+            }
+        }
 
         #endregion
 

@@ -29,8 +29,8 @@ namespace ConvertSpecLevel
         public object SelectedOutlet { get; set; }
         public object SelectedRefSpWall { get; set; }
         public object SelectedRefSp { get; set; }
-        public object SelectedOutletWall { get; set; }
-        public object SelectedGarageWall { get; set; }
+        public Reference SelectedOutletWall { get; set; }
+        public Reference SelectedGarageWall { get; set; }
 
         public frmConvertSpecLevel(UIDocument uidoc, Document curDoc)
         {
@@ -205,18 +205,80 @@ namespace ConvertSpecLevel
             {
                 this.Hide();
 
-                // TODO: Implement actual Revit wall selection logic here
-                System.Threading.Thread.Sleep(1000);
+                // check if the active view is a view plan type
+                if (CurDoc.ActiveView.ViewType != ViewType.FloorPlan)
+                {
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Please switch to a floor plan view to select the wall for the sprinkler outlet.");
+                    return;
+                }
 
-                btnDynamicRow2.Content = "Selected";
-                btnDynamicRow2.IsEnabled = true;
+                // prompt the user to select the wall for the sprinkler outlet
+                SelectedOutletWall = UIDoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select wall for sprinkler outlet.");
 
+                // cast the selected element to a Wall
+                Wall selectedWall = CurDoc.GetElement(SelectedOutletWall.ElementId) as Wall;
+
+                // verify the selected element is a wall
+                if (selectedWall == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
+                    this.Show();
+                    return;
+                }                
+
+                SelectGarageFrontWall();
+            }
+            catch (OperationCanceledException)
+            {
+                // User pressed Esc or cancelled - just show the form again, no error message needed
                 this.Show();
             }
             catch (Exception ex)
             {
                 this.Show();
-                MessageBox.Show($"Error selecting wall: {ex.Message}", "Error");
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
+            }
+        }
+
+        private void SelectGarageFrontWall()
+        {
+            try
+            {
+                // check if the active view is a view plan type
+                if (CurDoc.ActiveView.ViewType != ViewType.FloorPlan)
+                {
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Please switch to a floor plan view to select the front wall of the Garage.");
+                    return;
+                }
+
+                // prompt the user to select the wall for the sprinkler outlet
+                SelectedGarageWall = UIDoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select front wall of Garage.");
+
+                // cast the selected element to a Wall
+                Wall selectedWall = CurDoc.GetElement(SelectedGarageWall.ElementId) as Wall;
+
+                // verify the selected element is a wall
+                if (selectedWall == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
+                    return;
+                }
+
+                btnDynamicRow2.Content = "Selected";
+                btnDynamicRow2.IsEnabled = true;
+
+                // show the form again
+                this.Show();
+            }
+            catch (OperationCanceledException)
+            {
+                // User pressed Esc or cancelled - just show the form again, no error message needed
+                this.Show();
+            }
+            catch (Exception ex)
+            {
+                this.Show();
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
 
@@ -271,6 +333,22 @@ namespace ConvertSpecLevel
             {
                 System.Windows.MessageBox.Show("An error occurred while trying to display help: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+    }
+
+    internal class WallSelectionFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            return elem is Wall; // Allows only Wall elements to be selected
+        }
+
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            // For selecting walls, we are primarily interested in the element itself.
+            // If you need to allow selection based on faces or edges of a wall,
+            // you might adjust this method and potentially the PickObject/PickObjects call.
+            return false;
         }
     }
 

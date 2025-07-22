@@ -429,5 +429,10 @@ namespace ConvertSpecLevel.Common
         {
             throw new NotImplementedException();
         }
+
+        internal static List<Room> GetRoomByNameContainsInActiveView(Document curDoc, View curView, string v)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
