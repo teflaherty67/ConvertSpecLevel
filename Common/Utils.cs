@@ -1,6 +1,4 @@
-﻿
-
-using Autodesk.Revit.DB.Architecture;
+﻿using Autodesk.Revit.DB.Architecture;
 using System.Windows.Media;
 using static ConvertSpecLevel.cmdConvertSpecLevel;
 

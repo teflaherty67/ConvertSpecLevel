@@ -41,6 +41,7 @@ namespace ConvertSpecLevel
 
             Reference selectedSprinklerWall = curForm.SelectedOutletWall;
             Reference selectedGarageWall = curForm.SelectedGarageWall;
+            Reference selectedOutlet = curForm.SelectedOutlet;
 
             #endregion
 
@@ -242,7 +243,7 @@ namespace ConvertSpecLevel
                         UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
 
                         // add/remove the sprinkler outlet in the Garage
-                        AddSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall);
+                        ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
 
                         // add/remove the ceiling fan note in the views
                         ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
@@ -313,10 +314,7 @@ namespace ConvertSpecLevel
             // notify user conversion successful
         }
 
-        private void AddSprinklerOutlet(Document curDoc, UIDocument uidoc, string selectedSpecLevel, Reference selectedSprinklerWall, Reference selectedGarageWall)
-        {
-            throw new NotImplementedException();
-        }
+       
 
         #region Finish Floor Methods
 
@@ -1384,6 +1382,148 @@ namespace ConvertSpecLevel
             {
                 return false;
             }
+        }
+
+        private void ManageSprinklerOutlet(Document curDoc, UIDocument uidoc, string selectedSpecLevel, Reference selectedSprinklerWall, Reference selectedGarageWall, Reference selectedOutlet)
+        {
+            if (selectedSpecLevel == "Complete Home")
+                RemoveSprinklerOutlet(curDoc, selectedOutlet);
+            else
+                AddSprinklerOutlet(curDoc, uidoc, selectedSprinklerWall, selectedGarageWall);
+        }       
+
+        private void RemoveSprinklerOutlet(Document curDoc, Reference selectedOutlet)
+        {
+            // delete the selected outlet
+            Element curOutlet = curDoc.GetElement(selectedOutlet);
+            if (curOutlet != null)
+            {
+                curDoc.Delete(curOutlet.Id);
+            }                
+        }
+
+        private void AddSprinklerOutlet(Document curDoc, UIDocument uidoc, Reference selectedSprinklerWall, Reference selectedGarageWall)
+        {
+            // Get selected Garage wall
+            Wall garageWall = curDoc.GetElement(selectedGarageWall) as Wall;
+
+            // Create options for geometry extraction - controls how detailed the geometry will be
+            Options geometryOptions = new Options();
+
+            // Get the wall's 3D geometry as a collection of solids and surfaces
+            GeometryElement wallGeometry = garageWall.get_Geometry(geometryOptions);
+
+            // Variables to store our target point when found
+            XYZ targetPoint = null;
+            bool foundTargetPoint = false;
+
+            // Loop through the geometry to find the solid objects (the actual wall layers)
+            foreach (GeometryObject geomObj in wallGeometry)
+            {
+                // Check if this geometry object is a solid with volume and not null
+                if (geomObj is Solid solid && solid != null && solid.Volume > 0)
+                {
+                    // Get the material of this solid to identify if it's the stud layer
+                    ElementId materialId = solid.GraphicsStyleId;
+                    if (materialId != null && materialId != ElementId.InvalidElementId)
+                    {
+                        // Get the material element to check its name
+                        Material material = curDoc.GetElement(materialId) as Material;
+                        if (material != null && material.Name.Contains("2x"))
+                        {
+                            // Loop through all faces of this solid to find the structural core face
+                            foreach (Face face in solid.Faces)
+                            {
+                                // Get the face normal vector (direction perpendicular to the face)
+                                XYZ faceNormal = face.ComputeNormal(new UV(0.5, 0.5));
+
+                                // Check if this face is vertical (Z component near 0)
+                                if (Math.Abs(faceNormal.Z) < 0.1)
+                                {
+                                    // Get a point on the face to use for calculations
+                                    XYZ pointOnFace = face.Evaluate(new UV(0.5, 0.5));
+
+                                    // Check if this is the outside face by comparing with wall location line
+                                    LocationCurve wallLocationCurve = garageWall.Location as LocationCurve;
+
+                                    // Get the centerline of the wall
+                                    Line wallCenterLine = wallLocationCurve.Curve as Line;
+
+                                    // Get the closest point on the wall centerline to our face point
+                                    XYZ closestPointOnCenterline = wallCenterLine.Project(pointOnFace).XYZPoint;
+
+                                    // Calculate vector from centerline to face point
+                                    XYZ centerToFace = pointOnFace - closestPointOnCenterline;
+
+                                    // Check if this face is pointing away from the building interior (outside face)
+                                    if (centerToFace.DotProduct(faceNormal) > 0)
+                                    {
+                                        // This is the outside face - calculate target point 60" perpendicular from this face
+                                        targetPoint = pointOnFace + (faceNormal * 5.0);
+                                        foundTargetPoint = true;
+                                        break; // Exit face loop - we found our outside face
+                                    }
+
+                                    if (foundTargetPoint)
+                                        break; // Exit geometry loop - we found our target point
+                                }
+                            }                            
+                        }
+                    }
+
+                    // Check if we successfully found our target point
+                    if (!foundTargetPoint || targetPoint == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", "Could not find the outside face of the garage stud wall.");
+                        return;
+                    }
+
+                    // get the outlet wall to project the tartget point onto
+                    Wall outletWall = curDoc.GetElement(selectedSprinklerWall) as Wall;
+
+                    // Get the outlet wall's geometry to find where to place the outlet
+                    GeometryElement outletWallGeometry = outletWall.get_Geometry(geometryOptions);
+
+                    // Variables to store the outlet placement point
+                    XYZ outletPlacementPoint = null;
+                    bool foundOutletFace = false;
+
+                    // Loop through the outlet wall geometry to find the GWB layer
+                    foreach (GeometryObject outletGeomObj in outletWallGeometry)
+                    {
+                        // Check if this geometry object is a solid with volume and not null
+                        if (outletGeomObj is Solid outletSolid && outletSolid != null && outletSolid.Volume > 0)
+                        {
+                            // Get the material of this solid to identify if it's the GWB layer
+                            ElementId outletMaterialId = outletSolid.GraphicsStyleId;
+
+                            if (outletMaterialId != null && outletMaterialId != ElementId.InvalidElementId)
+                            {
+                                // Get the material element to check its name for GWB
+                                Material outletMaterial = curDoc.GetElement(outletMaterialId) as Material;
+                                if (outletMaterial != null && outletMaterial.Name.Contains("GWB"))
+                                {
+                                    // Loop through all faces of the GWB solid to find the inside face
+                                    foreach (Face outletFace in outletSolid.Faces)
+                                    {
+                                        // Get the face normal vector (direction perpendicular to the face)
+                                        XYZ outletFaceNormal = outletFace.ComputeNormal(new UV(0.5, 0.5));
+
+                                        // Check if this face is vertical (Z component near 0)
+                                        if (Math.Abs(outletFaceNormal.Z) < 0.1)
+                                        {
+
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // TODO: Continue with outlet placement using targetPoint
+            throw new NotImplementedException();
         }
 
         private void ManageSprinklerOutletNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel, List<View> firstFloorElecViews)
