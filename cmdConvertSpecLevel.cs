@@ -879,7 +879,7 @@ namespace ConvertSpecLevel
                 string curTypeName = curGM.Symbol.Name;
 
                 // replace the famile instance based on the current name
-                if (curTypeName.Contains("Kichen Counter"))
+                if (curTypeName.Contains("Kitchen Counter"))
                 {
                     // get the new counter type
                     FamilySymbol newCounterType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Counter_Top-Mount", "Type 1");
