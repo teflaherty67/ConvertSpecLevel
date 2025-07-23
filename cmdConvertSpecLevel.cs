@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Structure;
 using ConvertSpecLevel.Common;
 using System.ComponentModel;
 using System.Linq;
@@ -249,7 +250,7 @@ namespace ConvertSpecLevel
                         ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         // add/remove sprinkler outlet note
-                        ManageSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+                        RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         // commit the transaction
                         t.Commit();
@@ -1539,20 +1540,113 @@ namespace ConvertSpecLevel
                                 return;
                             }
 
+                            // Load the sprinkler outlet family
+                            Family outletFamily = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
+
+                            // Check if family loaded successfully
+                            if (outletFamily == null)
+                            {
+                                Utils.TaskDialogError("Error", "Spec Conversion", "Could not load sprinkler outlet family.");
+                                return;
+                            }
+
+                            // Get the family symbol (type) to place
+                            FamilySymbol outletSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_EF_Recep_Wall", "Sprinkler");
+
+                            // Check if the symbol was found and activate it if needed
+                            if (outletSymbol == null)
+                            {
+                                Utils.TaskDialogError("Error", "Spec Conversion", "Could not find 'Sprinkler' type in the receptacle family.");
+                                return;
+                            }
+
+                            // Activate the family symbol if it's not already active
+                            if (!outletSymbol.IsActive)
+                            {
+                                outletSymbol.Activate();
+                            }
+
+                            // Place the sprinkler outlet at the calculated intersection point
+                            FamilyInstance sprinklerOutlet = curDoc.Create.NewFamilyInstance(outletPlacementPoint, outletSymbol, outletWall, StructuralType.NonStructural);
+
+                            // Check if the outlet was placed successfully
+                            if (sprinklerOutlet == null)
+                            {
+                                Utils.TaskDialogError("Error", "Spec Conversion", "Failed to place sprinkler outlet.");
+                                return;
+                            }
+
+                            // Create dimension from garage wall face to outlet center
+                            // First, get references for dimensioning - garage wall face and outlet center
+                            Reference refGarageWall = new Reference(garageWall);
+
+                            // Get reference to the outlet's 'Center (Left/Right)' reference point
+                            Reference refOutlet = null;
+                            foreach (Reference familyRef in sprinklerOutlet.GetReferences(FamilyInstanceReferenceType.CenterLeftRight))
+                            {
+                                refOutlet = familyRef;
+                                break; // Take the first (and likely only) Center (Left/Right) reference
+                            }
+
+                            // Check if we found the outlet reference
+                            if (refOutlet == null)
+                            {
+                                Utils.TaskDialogError("Error", "Spec Conversion", "Could not find outlet center reference for dimensioning.");
+                                return;
+                            }
+
+                            // Create a reference array for the dimension (from garage wall to outlet)
+                            ReferenceArray dimReferenceArray = new ReferenceArray();
+                            dimReferenceArray.Append(refGarageWall);
+                            dimReferenceArray.Append(refOutlet);
+
+                            // Create a line to define where the dimension will be placed (2' from outlet wall exterior)
+                            XYZ dimensionOffset = (outletPlacementPoint - targetPoint).Normalize() * 2.0; // 2 feet perpendicular to outlet wall
+                            XYZ dimStartPoint = targetPoint + dimensionOffset;
+                            XYZ dimEndPoint = outletPlacementPoint + dimensionOffset;
+                            Line dimensionLine = Line.CreateBound(dimStartPoint, dimEndPoint);
+
+                            // Create the dimension
+                            Dimension sprinklerDimension = curDoc.Create.NewDimension(curDoc.ActiveView, dimensionLine, dimReferenceArray);
+
+                            // Create a tag for the sprinkler outlet with leader
+                            // Determine outlet wall orientation and calculate tag position accordingly
+                            LocationCurve outletWallLocation = outletWall.Location as LocationCurve;
+                            Line outletWallLine = outletWallLocation.Curve as Line;
+                            XYZ wallDirection = outletWallLine.Direction;
+
+                            // Check if wall is more horizontal or vertical by comparing X and Y components
+                            bool isHorizontalWall = Math.Abs(wallDirection.X) > Math.Abs(wallDirection.Y);
+
+                            XYZ tagPosition;
+                            if (isHorizontalWall)
+                            {
+                                // Horizontal wall: 2' left and 2' up
+                                tagPosition = outletPlacementPoint + new XYZ(-2.0, 0, 2.0);
+                            }
+                            else
+                            {
+                                // Vertical wall: 2' right and 2' up  
+                                tagPosition = outletPlacementPoint + new XYZ(2.0, 0, 2.0);
+                            }
+
+                            // Create the tag for the sprinkler outlet
+                            IndependentTag sprinklerTag = IndependentTag.Create(curDoc, curDoc.ActiveView.Id, new Reference(sprinklerOutlet), true, TagMode.TM_ADDBY_CATEGORY, TagOrientation.Horizontal, tagPosition);
+
+                            // Set the leader to free end
+                            sprinklerTag.LeaderEndCondition = LeaderEndCondition.Free;
+
+                            // Success - sprinkler outlet added successfully
+                            Utils.TaskDialogInformation("Complete", "Spec Conversion", "Sprinkler outlet added successfully.");
                         }
                     }
                 }
-            }
-
-            // TODO: Continue with outlet placement using targetPoint
-            throw new NotImplementedException();
+            }         
         }
 
-        private void ManageSprinklerOutletNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel, List<View> firstFloorElecViews)
+        private void RemoveSprinklerOutletNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel, List<View> firstFloorElecViews)
         {
-            string noteText = "Dedicated outlet for sprinkler system @ 60\" AFF";
-
-            // CHP to CH conversion - delete sprinkler note in garage
+            // Remove any existing sprinkler text notes from previous conversions
             var sprinklerNotes = new FilteredElementCollector(curDoc)
                 .OfClass(typeof(TextNote))
                 .Cast<TextNote>()
@@ -1562,58 +1656,6 @@ namespace ConvertSpecLevel
             foreach (TextNote curNote in sprinklerNotes)
             {
                 curDoc.Delete(curNote.Id);
-            }
-
-            foreach (View curView in firstFloorElecViews)
-            {
-               if (selectedSpecLevel == "Complete Home Plus")
-               {
-                    // set the active view
-                    uidoc.ActiveView = curView;
-
-                    // find the garage in the active view
-                    Room garageRoom = Utils.GetRoomByNameContainsInActiveView(curDoc, curView, "Garage").FirstOrDefault();
-
-                    if (garageRoom != null)
-                    {
-                        // CH to CHP conversion - add sprinkler note to Garage
-                        AddSprinklerOutletNotes(curDoc, garageRoom, noteText);  // Single room, not list
-                    }
-                }
-            }                
-        }
-
-        private void AddSprinklerOutletNotes(Document curDoc, Room garageRoom, string noteText)
-        {
-            // get the TextNoteType
-            TextNoteType textNoteType = Utils.GetTextNoteTypeByName(curDoc, "STANDARD");
-
-            // null check for the TextNoteType
-            if (textNoteType == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Text Note Type 'STANDARD' not found in the project.");
-                return;
-            }
-
-            // check if note already exists
-            List<TextNote> existingNotes = GetTextNotesInRoom(curDoc, garageRoom, noteText);
-
-            if (existingNotes.Count > 0)
-            {
-                return; // Note already exists, skip
-            }
-
-            // insertion point for note placement
-            XYZ roomCenter = Utils.GetRoomCenterPoint(garageRoom);
-
-            // null check for room center
-            if (roomCenter != null)
-            {
-                // Create point 2' below room center
-                XYZ notePosition = new XYZ(roomCenter.X, roomCenter.Y - 2.0, roomCenter.Z);
-
-                // Create the text note
-                TextNote.Create(curDoc, curDoc.ActiveView.Id, notePosition, noteText, textNoteType.Id);                
             }
         }
 
