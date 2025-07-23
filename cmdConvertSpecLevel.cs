@@ -1512,11 +1512,33 @@ namespace ConvertSpecLevel
                                         // Check if this face is vertical (Z component near 0)
                                         if (Math.Abs(outletFaceNormal.Z) < 0.1)
                                         {
+                                            // Project our target point onto this face to see if it intersects
+                                            IntersectionResult intersection = outletFace.Project(targetPoint);
+                                            if (intersection != null)
+                                            {
+                                                // Get the intersection point - this is where the outlet will be placed
+                                                outletPlacementPoint = intersection.XYZPoint;
+                                                foundOutletFace = true;
+                                                break; // Exit face loop - we found our intersection
+                                            }
 
                                         }
                                     }
+
+                                    if (foundOutletFace)
+                                    {
+                                        break; // Exit geometry loop - we found our outlet face
+                                    }
                                 }
                             }
+
+                            // Check if we successfully found our outlet placement point
+                            if (!foundOutletFace || outletPlacementPoint == null)
+                            {
+                                Utils.TaskDialogError("Error", "Spec Conversion", "Could not find intersection point on the outlet wall.");
+                                return;
+                            }
+
                         }
                     }
                 }
