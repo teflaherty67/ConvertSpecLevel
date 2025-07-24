@@ -29,7 +29,7 @@ namespace ConvertSpecLevel
         public object SelectedCabinet { get; set; }
         public Reference SelectedOutlet { get; set; }
         public object SelectedRefSpWall { get; set; }
-        public Line SelectedRefSp { get; set; }
+        public FamilyInstance SelectedRefSp { get; set; }
         public Reference SelectedOutletWall { get; set; }
         public Reference SelectedGarageWall { get; set; }
 
@@ -246,35 +246,76 @@ namespace ConvertSpecLevel
             try
             {
                 this.Hide();
-                // get all views with Annotation in the name & associated with the First Floor
-                List<View> firstFloorAnnoViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(CurDoc, "Annotation", "First Floor");
 
-                // get the first view in the list
-                if (firstFloorAnnoViews.Any())
+                // check if the active view is a view plan type
+                if (CurDoc.ActiveView.ViewType != ViewType.FloorPlan)
                 {
-                    // set that view as the active view
-                    UIDoc.ActiveView = firstFloorAnnoViews.First();
-
-                    // prompt the user to select the outlet to delete
-                    SelectedOutlet = UIDoc.Selection.PickObject(ObjectType.Element, new CabinetSelectionFilter(), "Select cabinet to remove");
-                }
-                else
-                {
-                    // notify the user that no Electrical views were found
-                    Utils.TaskDialogWarning("Warning", "Spec Conversion", "No Annotation views found associated with the First Floor.");
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Please switch to a floor plan view to select the wall for the cabinet.");
+                    return;
                 }
 
-                btnDynamicRow1.Content = "Selected";
-                btnDynamicRow1.IsEnabled = true;
+                // prompt the user to select the outlet to delete
+                SelectedRefSpWall = UIDoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select wall to place Ref Sp cabinet");
 
+                // cast the selected element to a Wall
+                Wall selectedWall = CurDoc.GetElement(SelectedRefSpWall.ElementId) as Wall;
+
+                // verify the selected element is a wall
+                if (selectedWall == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
+                    this.Show();
+                    return;
+                }
+
+                // call the method to select the Ref Sp
+                SelectRefSp();
+            }
+            catch (OperationCanceledException)
+            {
+                // User pressed Esc or cancelled - just show the form again, no error message needed
                 this.Show();
             }
             catch (Exception ex)
             {
                 this.Show();
-                MessageBox.Show($"Error selecting wall: {ex.Message}", "Error");
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
+
+        private void SelectRefSp()
+        {
+            try
+            {
+                // prompt the user to select the Ref Sp
+                SelectedRefSp = CurDoc.GetElement(UIDoc.Selection.PickObject(ObjectType.Element, new ApplianceSelectionFilter(), "Select Ref Sp")) as FamilyInstance;
+
+                // verify the selected element is a family instance
+                if (SelectedRefSp == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a refrigerator. Please try again.");
+                    return;
+                }
+
+                btnDynamicRow1.Content = "Selected";
+                btnDynamicRow1.IsEnabled = true;
+
+                // show the form again
+                this.Show();
+            }           
+
+            catch (OperationCanceledException)
+            {
+                // User pressed Esc or cancelled - just show the form again, no error message needed
+                this.Show();
+            }
+            catch (Exception ex)
+            {
+                this.Show();
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting refrigerator: {ex.Message}");
+            }
+        }
+
 
         private void SelectSprinklerWall()
         {
@@ -321,13 +362,6 @@ namespace ConvertSpecLevel
         {
             try
             {
-                // check if the active view is a view plan type
-                if (CurDoc.ActiveView.ViewType != ViewType.FloorPlan)
-                {
-                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Please switch to a floor plan view to select the front wall of the Garage.");
-                    return;
-                }
-
                 // prompt the user to select the wall for the sprinkler outlet
                 SelectedGarageWall = UIDoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select front wall of Garage.");
 
@@ -392,7 +426,9 @@ namespace ConvertSpecLevel
             {
                 System.Windows.MessageBox.Show("An error occurred while trying to display help: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }       
+        }
+
+       
 
         #endregion
     }
@@ -443,6 +479,30 @@ namespace ConvertSpecLevel
                     string typeName = familyInstance.Symbol.Name;
                     return typeName.Contains("Outlet", StringComparison.OrdinalIgnoreCase) ||
                            typeName.Contains("Sprinkler", StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            return false;
+        }
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            // Allow all references
+            return true;
+        }
+    }
+
+    internal class ApplianceSelectionFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            // Check if element is specialty equipment
+            if (elem.Category != null && elem.Category.Name == "Specialty Equipment")
+            {
+                // Cast to FamilyInstance to access the Symbol
+                if (elem is FamilyInstance familyInstance)
+                {
+                    // Check if the family name matches the refrigerator family
+                    string familyName = familyInstance.Symbol.Family.Name;
+                    return familyName.Equals("LD_SE_Refrigerator_Generic", StringComparison.OrdinalIgnoreCase);
                 }
             }
             return false;
