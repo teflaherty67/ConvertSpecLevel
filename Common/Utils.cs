@@ -116,6 +116,53 @@ namespace ConvertSpecLevel.Common
 
         #endregion
 
+        #region Levels
+        public static List<Level> GetAllLevels(Document curDoc)
+        {
+            FilteredElementCollector m_colLevels = new FilteredElementCollector(curDoc);
+            m_colLevels.OfCategory(BuiltInCategory.OST_Levels);
+
+            List<Level> m_levels = new List<Level>();
+            foreach (Element x in m_colLevels.ToElements())
+            {
+                if (x.GetType() == typeof(Level))
+                {
+                    m_levels.Add((Level)x);
+                }
+            }
+
+            return m_levels;
+            //order list by elevation
+            //m_levels = (From l In m_levels Order By l.Elevation).tolist()
+        }
+
+        internal static List<Level> GetAllLevelsByElevation(Document curDoc)
+        {
+            // gets all levels sorted by level elevation
+            // special thanks to Jason Mammen for this version!
+            return new List<Level>(new FilteredElementCollector(curDoc).OfClass(typeof(Level))
+                .WhereElementIsNotElementType().Cast<Level>().OrderBy(el => el.Elevation));
+        }
+
+        public static Level GetLevelByName(Document curDoc, string levelName)
+        {
+            FilteredElementCollector levelCollector = new FilteredElementCollector(curDoc);
+            levelCollector.OfCategory(BuiltInCategory.OST_Levels);
+            levelCollector.OfClass(typeof(Level)).ToElements();
+
+            //loop through levels and find match for levelName argument
+            foreach (Level tmpLevel in levelCollector)
+            {
+                if (tmpLevel.Name == levelName)
+                {
+                    return tmpLevel;
+                }
+            }
+
+            return null;
+        }
+        #endregion
+
         #region Ribbon Panel
         internal static RibbonPanel CreateRibbonPanel(UIControlledApplication app, string tabName, string panelName)
         {
