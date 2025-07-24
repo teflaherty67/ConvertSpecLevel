@@ -8,6 +8,19 @@ namespace ConvertSpecLevel.Common
     {
         #region Families
 
+        /// <summary>
+        /// Finds a family symbol by family name and type name
+        /// </summary>        
+        /// <returns>The family symbol or null if not found</returns>
+        internal static FamilySymbol FindFamilySymbol(Document curDoc, string familyName, string typeName)
+        {
+            return new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .FirstOrDefault(fs => fs.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase) &&
+                                     fs.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
+        }
+
         internal static Family LoadFamilyFromLibrary(Document curDoc, String filePath, string familyName)
         {
             // create the full path to the family file
@@ -237,6 +250,28 @@ namespace ConvertSpecLevel.Common
                 .ToList();                                       // Convert the collection to a List<Room> and return
         }
 
+        /// <summary>
+        /// Gets the center point of a room for note placement
+        /// </summary>
+        /// <returns>The center point or null if not found</returns>
+        internal static XYZ GetRoomCenterPoint(Room curRoom)
+        {
+            try
+            {
+                LocationPoint location = curRoom.Location as LocationPoint;
+                return location?.Point;
+            }
+            catch
+            {
+                // Fallback: use bounding box center
+                var bbox = curRoom.get_BoundingBox(null);
+                if (bbox != null)
+                {
+                    return (bbox.Min + bbox.Max) / 2;
+                }
+                return null;
+            }
+        }
 
         #endregion
 
@@ -455,7 +490,28 @@ namespace ConvertSpecLevel.Common
             return m_Views;
         }
 
-        #endregion
+        internal static List<View> GetAllViewsByNameContains(Document curDoc, string viewName)
+        {
+            // create an empty list to hold the results
+            List<View> m_returnList = new List<View>();
+
+            // get all views in the document
+            List<View> m_allViews = GetAllViews(curDoc);
+
+            // loop through all views
+            foreach (View curView in m_allViews)
+            {
+                // check if the view name contains the specified string
+                if (curView.Name.IndexOf(viewName, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // add the view to the return list
+                    m_returnList.Add(curView);
+                }
+            }
+
+            // return the list of views that match the criteria
+            return m_returnList;
+        }
 
         internal static List<View> GetAllViewsByNameContainsAndAssociatedLevel(Document curDoc, string viewName, string levelName)
         {
@@ -494,56 +550,86 @@ namespace ConvertSpecLevel.Common
             return m_returnList;
         }
 
-        internal static View GetViewByNameContainsAndAssociatedLevel(Document curDoc, string v1, string v2)
+        internal static View GetViewByNameContainsAndAssociatedLevel(Document curDoc, string viewName, string levelName)
         {
-            throw new NotImplementedException();
-        }
+            // create an empty list to hold the results
+            List<View> m_returnList = new List<View>();
 
-        internal static ViewSheet GetViewSheetByName(Document curDoc, string v)
-        {
-            throw new NotImplementedException();
-        }
+            // get all views in the document
+            List<View> m_allViews = GetAllViews(curDoc);
 
-        /// <summary>
-        /// Finds a family symbol by family name and type name
-        /// </summary>        
-        /// <returns>The family symbol or null if not found</returns>
-        internal static FamilySymbol FindFamilySymbol(Document curDoc, string familyName, string typeName)
-        {
-            return new FilteredElementCollector(curDoc)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault(fs => fs.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase) &&
-                                     fs.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        /// <summary>
-        /// Gets the center point of a room for note placement
-        /// </summary>
-        /// <returns>The center point or null if not found</returns>
-        internal static XYZ GetRoomCenterPoint(Room curRoom)
-        {
-            try
+            // loop through all views
+            foreach (View curView in m_allViews)
             {
-                LocationPoint location = curRoom.Location as LocationPoint;
-                return location?.Point;
-            }
-            catch
-            {
-                // Fallback: use bounding box center
-                var bbox = curRoom.get_BoundingBox(null);
-                if (bbox != null)
+                // check if the view name contains the specified string
+                if (curView.Name.IndexOf(viewName, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    return (bbox.Min + bbox.Max) / 2;
+                    // get the associated level parameter
+                    Parameter paramAssociatedLevel = curView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL);
+
+                    // check if the parameter is not null and has a value
+                    if (paramAssociatedLevel != null && paramAssociatedLevel.HasValue)
+                    {
+                        // get the level name from the parameter
+                        string levelNameFromParam = paramAssociatedLevel.AsString();
+
+                        // check if the level name matches the specified level name
+                        if (levelNameFromParam.Equals(levelName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // add the view to the return list
+                            m_returnList.Add(curView);
+                        }
+                    }
                 }
+            }
+
+            // return the list of views that match the criteria
+            if (m_returnList.Count > 0)
+            {
+                return m_returnList.FirstOrDefault();
+            }
+            else
+            {
                 return null;
             }
         }
 
-        internal static List<View> GetAllViewsByNameContains(Document curDoc, string v)
+        #endregion
+
+        #region Sheets
+
+        internal static ViewSheet GetSheetByName(Document curDoc, string sheetName)
         {
-            throw new NotImplementedException();
+            //get all sheets
+            List<ViewSheet> curSheets = GetAllSheets(curDoc);
+
+            //loop through sheets and check sheet name
+            foreach (ViewSheet curSheet in curSheets)
+            {
+                if (curSheet.Name == sheetName)
+                {
+                    return curSheet;
+                }
+            }
+
+            return null;
         }
 
+        internal static List<ViewSheet> GetAllSheets(Document curDoc)
+        {
+            //get all sheets
+            FilteredElementCollector m_colViews = new FilteredElementCollector(curDoc);
+            m_colViews.OfCategory(BuiltInCategory.OST_Sheets);
+
+            List<ViewSheet> m_sheets = new List<ViewSheet>();
+            foreach (ViewSheet x in m_colViews.ToElements())
+            {
+                m_sheets.Add(x);
+            }
+
+            return m_sheets;
+        }
+
+        #endregion        
     }
 }

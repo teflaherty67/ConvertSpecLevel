@@ -150,7 +150,7 @@ namespace ConvertSpecLevel
                 #region Cabinet Updates
 
                 // get the Interior Elevations sheet & set it as the active view
-                ViewSheet sheetIntr = Utils.GetViewSheetByName(curDoc, "Interior Elevations");
+                ViewSheet sheetIntr = Utils.GetSheetByName(curDoc, "Interior Elevations");
 
                 if (sheetIntr != null)
                 {
@@ -315,9 +315,7 @@ namespace ConvertSpecLevel
             return Result.Succeeded;
 
             // notify user conversion successful
-        }
-
-       
+        }       
 
         #region Finish Floor Methods
 
