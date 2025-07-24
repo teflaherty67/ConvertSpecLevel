@@ -28,7 +28,7 @@ namespace ConvertSpecLevel
         // properties for selected elements
         public object SelectedCabinet { get; set; }
         public Reference SelectedOutlet { get; set; }
-        public object SelectedRefSpWall { get; set; }
+        public Reference SelectedRefSpWall { get; set; }
         public FamilyInstance SelectedRefSp { get; set; }
         public Reference SelectedOutletWall { get; set; }
         public Reference SelectedGarageWall { get; set; }

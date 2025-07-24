@@ -42,6 +42,8 @@ namespace ConvertSpecLevel
 
             Reference selectedSprinklerWall = curForm.SelectedOutletWall;
             Reference selectedGarageWall = curForm.SelectedGarageWall;
+            Reference selectedRefSpWall = curForm.SelectedRefSpWall;
+            FamilyInstance selectedRefSp = curForm.SelectedRefSp;
             Reference selectedOutlet = curForm.SelectedOutlet;
 
             #endregion
@@ -188,7 +190,7 @@ namespace ConvertSpecLevel
                     }
                     else
                     {
-                        AddRefSpCabinet(curDoc);
+                        AddRefSpCabinet(curDoc, uidoc, selectedRefSpWall, selectedRefSp);
                     }
 
                     // raise/lower the backsplash height
@@ -845,8 +847,42 @@ namespace ConvertSpecLevel
                 .ToList();
         }
 
-        private void AddRefSpCabinet(Document curDoc)
+        private void AddRefSpCabinet(Document curDoc, UIDocument uidoc, Reference selectedRefSpWall, FamilyInstance selectedRefSp)
         {
+            // get the wall where the Ref Sp cabinet will be added
+            Wall wallRefSp = curDoc.GetElement(selectedRefSpWall) as Wall;
+
+            // create a variable to hold the Ref Sp's Center (Left/Right) reference for placement calculations
+            Reference refCenterLR = null;
+
+            // loop through the selected Ref Sp cabinet references to find the Center (Left/Right) reference
+            foreach (Reference familyRef in selectedRefSp.GetReferences(FamilyInstanceReferenceType.CenterLeftRight))
+            {
+                // Store the centerline reference from the refrigerator
+                refCenterLR = familyRef;
+                // Take the first (and likely only) Center (Left/Right) reference
+                break;
+            }
+            // null check for the Center (Left/Right) reference
+            if (refCenterLR == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Could not fins centerline reference fore the refrigerator.");
+                return;
+            }
+
+            // Load the Ref Sp cabinet family from the library
+            Family refSpFamily = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
+
+            // Check if the cabinet family loaded successfully
+            if (refSpFamily == null)
+            {
+                // Show error message if cabinet family failed to load
+                Utils.TaskDialogError("Error", "Spec Conversion", "Could not load Ref Sp cabinet family from library.");
+                return;
+            }
+
+            // Get the cabinet family type for placement
+            FamilySymbol refSpSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_CW_Wall_2-Dr_Flush", "39\"x27\"x15\"");
 
             throw new NotImplementedException();
         }
