@@ -136,30 +136,30 @@ namespace ConvertSpecLevel
 
         private void btnDynamicRow1_Click(object sender, RoutedEventArgs e)
         {
-            if (rbCompleteHome.IsChecked == true)
-            {
-                // Handle cabinet selection for Complete Home
-                SelectCabinet();
-            }
-            else
-            {
-                // Handle wall selection for Complete Home Plus
-                SelectRefSpWall();
-            }
+            //if (rbCompleteHome.IsChecked == true)
+            //{
+            //    // Handle cabinet selection for Complete Home
+            //    SelectCabinet();
+            //}
+            //else
+            //{
+            //    // Handle wall selection for Complete Home Plus
+            //    SelectRefSpWall();
+            //}
         }
 
         private void btnDynamicRow2_Click(object sender, RoutedEventArgs e)
         {
-            if (rbCompleteHome.IsChecked == true)
-            {
-                // Handle outlet selection for Complete Home
-                SelectOutlet();
-            }
-            else
-            {
-                // Handle sprinkler wall selection for Complete Home Plus
-                SelectSprinklerWall();
-            }
+            //if (rbCompleteHome.IsChecked == true)
+            //{
+            //    // Handle outlet selection for Complete Home
+            //    SelectOutlet();
+            //}
+            //else
+            //{
+            //    // Handle sprinkler wall selection for Complete Home Plus
+            //    SelectSprinklerWall();
+            //}
         }
 
         #endregion
