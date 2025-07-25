@@ -408,28 +408,13 @@ namespace ConvertSpecLevel
 
         private void btnOK_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                this.DialogResult = true;
-            }
-            catch (InvalidOperationException)
-            {
-                // if DialogResult can't be set, just close the window
-                this.Close();
-            }
+            this.DialogResult = true;
+            this.Close();
         }
 
         private void btnCancel_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                this.DialogResult = false;
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
+            this.DialogResult = false;
             this.Close();
         }
 
@@ -450,7 +435,9 @@ namespace ConvertSpecLevel
             {
                 System.Windows.MessageBox.Show("An error occurred while trying to display help: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }       
+        }
+
+       
 
         #endregion
     }
