@@ -882,6 +882,57 @@ namespace ConvertSpecLevel
             // Get the cabinet family type for placement
             FamilySymbol refSpSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_CW_Wall_2-Dr_Flush", "39\"x27\"x15\"");
 
+            // Check if the cabinet type was found
+            if (refSpSymbol == null)
+            {
+                // Show error message if cabinet type not found
+                Utils.TaskDialogError("Error", "Spec Conversion", "Could not find Ref Sp cabinet type in the project after loading family.");
+                return;
+            }
+
+            // activate the cabinet type if not already active
+            if (!refSpSymbol.IsActive)
+            {
+                refSpSymbol.Activate();
+            }
+
+            // Now we need to calculate the cabinet placement point using geometric calculations
+            // First, get the refrigerator's centerline geometry from the reference
+
+            // Get the geometric curve from the refrigerator's centerline reference
+            GeometryObject fridgeGeometry = selectedRefSp.GetGeometryObjectFromReference(refCenterLR);
+
+            // Cast the geometry object to a Line for centerline calculations
+            Line fridgeCenterLine = fridgeGeometry as Line;
+
+            // check if the fridge centerline is null
+            if (fridgeCenterLine == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Refrigerator centerline is not a straight line. Cannot calculate cabinet placement.");
+                return;
+            }
+
+            // Get the wall's location curve to find intersection point
+            LocationCurve wallLocation = wallRefSp.Location as LocationCurve;
+
+            // get the curve geometry from the wall location
+            Line wallCenterLine = wallLocation.Curve as Line;
+
+            // Find where the refrigerator centerline intersects the wall centerline
+            IntersectionResultArray intersectionResults;
+            SetComparisonResult intersectionResult = fridgeCenterLine.Intersect(wallCenterLine, out intersectionResults);
+
+            // Check if the lines actually intersect
+            if (intersectionResult != SetComparisonResult.Overlap && intersectionResults.Size == 0)
+            {
+                // Show error message if no intersection found between refrigerator and wall
+                Utils.TaskDialogError("Error", "Spec Conversion", "Refrigerator centerline does not intersect with the selected wall. Cannot place cabinet.");
+                return;
+            }
+
+
+
+
             throw new NotImplementedException();
         }
 
