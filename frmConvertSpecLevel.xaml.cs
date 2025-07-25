@@ -245,12 +245,21 @@ namespace ConvertSpecLevel
         {
             try
             {
+                // hide the form while the user selects the wall
                 this.Hide();
 
-                // check if the active view is a view plan type
-                if (CurDoc.ActiveView.ViewType != ViewType.FloorPlan)
+                // automatically switch to a First Floor view if not already in one
+                View firstFloorPlan = Utils.GetAllViewsByNameContainsAndAssociatedLevel(CurDoc, "Annotation", "First Floor")
+                    .FirstOrDefault();
+
+                if (firstFloorPlan != null)
                 {
-                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Please switch to a floor plan view to select the wall for the cabinet.");
+                    UIDoc.ActiveView = firstFloorPlan;
+                }
+                else
+                {
+                    this.Show();
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No First Floor plan views found in the project.");
                     return;
                 }
 
@@ -399,13 +408,28 @@ namespace ConvertSpecLevel
 
         private void btnOK_Click(object sender, RoutedEventArgs e)
         {
-            this.DialogResult = true;
-            this.Close();
+            try
+            {
+                this.DialogResult = true;
+            }
+            catch (InvalidOperationException)
+            {
+                // if DialogResult can't be set, just close the window
+                this.Close();
+            }
         }
 
         private void btnCancel_Click(object sender, RoutedEventArgs e)
         {
-            this.DialogResult = false;
+            try
+            {
+                this.DialogResult = false;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
             this.Close();
         }
 
@@ -426,9 +450,7 @@ namespace ConvertSpecLevel
             {
                 System.Windows.MessageBox.Show("An error occurred while trying to display help: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-       
+        }       
 
         #endregion
     }
@@ -494,18 +516,8 @@ namespace ConvertSpecLevel
     {
         public bool AllowElement(Element elem)
         {
-            // Check if element is specialty equipment
-            if (elem.Category != null && elem.Category.Name == "Specialty Equipment")
-            {
-                // Cast to FamilyInstance to access the Symbol
-                if (elem is FamilyInstance familyInstance)
-                {
-                    // Check if the family name matches the refrigerator family
-                    string familyName = familyInstance.Symbol.Family.Name;
-                    return familyName.Equals("LD_SE_Refrigerator_Generic", StringComparison.OrdinalIgnoreCase);
-                }
-            }
-            return false;
+            // allow any specialty equipment family
+            return elem.Category != null && elem.Category.Name == "Specialty Equipment";           
         }
         public bool AllowReference(Reference reference, XYZ position)
         {
