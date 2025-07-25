@@ -184,9 +184,9 @@ namespace ConvertSpecLevel
                     ReplaceMWCabinet(curDoc, selectedMWCabHeight);
 
                     // add/remove the Ref Sp cabinet
-                    if (selectedSpecLevel == "Complete Home" && curForm.SelectedCabinet != null)
+                    if (selectedSpecLevel == "Complete Home" && selectedCabinet != null)
                     {
-                        curDoc.Delete(((Element)curForm.SelectedCabinet).Id);
+                        curDoc.Delete(((Element)selectedCabinet).Id);
                     }
                     else
                     {
@@ -282,9 +282,7 @@ namespace ConvertSpecLevel
                 else
                 {
                     // if not found alert the user
-                    TaskDialog.Show("Error", "No Electrical views found for Second Floor");
-                    transGroup.RollBack();
-                    return Result.Failed;
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for Second Floor");
                 }
 
                 // create transaction for Second Floor Electrical updates

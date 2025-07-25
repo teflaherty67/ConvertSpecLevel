@@ -183,7 +183,7 @@ namespace ConvertSpecLevel
                     UIDoc.ActiveView = firstFloorAnnoViews.First();
 
                     // prompt the user to select the outlet to delete
-                    SelectedOutlet = UIDoc.Selection.PickObject(ObjectType.Element, new CabinetSelectionFilter(), "Select cabinet to remove");
+                    SelectedCabinet = UIDoc.Selection.PickObject(ObjectType.Element, new CabinetSelectionFilter(), "Select cabinet to remove");
                 }
                 else
                 {
@@ -221,7 +221,7 @@ namespace ConvertSpecLevel
                     UIDoc.ActiveView = firstFloorElecViews.First();
                 
                     // prompt the user to select the outlet to delete
-                    SelectedOutlet = UIDoc.Selection.PickObject(ObjectType.Element, new OutlettSelectionFilter(), "Select sprinkler outlet to remove");
+                    SelectedOutlet = UIDoc.Selection.PickObject(ObjectType.Element, new OutletSelectionFilter(), "Select sprinkler outlet to remove");
                 }
                 else
                 {
@@ -465,7 +465,7 @@ namespace ConvertSpecLevel
         }
     }
 
-    internal class OutlettSelectionFilter : ISelectionFilter
+    internal class OutletSelectionFilter : ISelectionFilter
     {
         public bool AllowElement(Element elem)
         {
