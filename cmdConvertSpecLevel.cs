@@ -930,10 +930,35 @@ namespace ConvertSpecLevel
                 return;
             }
 
+            // Get the intersection point from the results
+            XYZ intersectionPoint = intersectionResults.get_Item(0).XYZPoint;
 
+            // Calculate the wall direction vector to determine left offset direction
+            XYZ wallDirection = wallCenterLine.Direction;
 
+            // Create a perpendicular vector pointing left relative to the wall direction
+            XYZ leftDirection = new XYZ(-wallDirection.Y, wallDirection.X, 0);
 
-            throw new NotImplementedException();
+            // Calculate the final cabinet placement point by offsetting 19.5" to the left and setting elevation to 75" AFF
+            XYZ cabinetPlacementPoint = new XYZ(
+                intersectionPoint.X + (leftDirection.X * (19.5 / 12.0)),
+                intersectionPoint.Y + (leftDirection.Y * (19.5 / 12.0)),
+                6.25); // 75" AFF (75/12 = 6.25 feet)
+
+            // Place the Ref Sp cabinet at the calculated placement point
+            FamilyInstance refSpCabinet = curDoc.Create.NewFamilyInstance(cabinetPlacementPoint, refSpSymbol, wallRefSp, StructuralType.NonStructural);
+
+            // Check if the cabinet was placed successfully
+            if (refSpCabinet == null)
+            {
+                // Show error message if cabinet placement failed
+                Utils.TaskDialogError("Error", "Spec Conversion", "Failed to place Ref Sp cabinet at calculated location.");
+                return;
+            }
+
+            // Success - Ref Sp cabinet placed successfully
+            Utils.TaskDialogInformation("Complete", "Spec Conversion", "Ref Sp cabinet placed successfully at calculated location.");
+
         }
 
         private void UpdateBacksplashHeight(Document curDoc, string selectedSpecLevel)
