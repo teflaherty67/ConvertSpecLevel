@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36327.8 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConvertSpecLevel", "ConvertSpecLevel.csproj", "{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug R24|Any CPU = Debug R24|Any CPU
+		Debug R25|Any CPU = Debug R25|Any CPU
+		Debug R26|Any CPU = Debug R26|Any CPU
+		Release R24|Any CPU = Release R24|Any CPU
+		Release R25|Any CPU = Release R25|Any CPU
+		Release R26|Any CPU = Release R26|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Debug R24|Any CPU.ActiveCfg = Debug R24|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Debug R24|Any CPU.Build.0 = Debug R24|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Debug R25|Any CPU.ActiveCfg = Debug R25|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Debug R25|Any CPU.Build.0 = Debug R25|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Debug R26|Any CPU.ActiveCfg = Debug R26|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Debug R26|Any CPU.Build.0 = Debug R26|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Release R24|Any CPU.ActiveCfg = Release R24|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Release R24|Any CPU.Build.0 = Release R24|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Release R25|Any CPU.ActiveCfg = Release R25|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Release R25|Any CPU.Build.0 = Release R25|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Release R26|Any CPU.ActiveCfg = Release R26|Any CPU
+		{9F9313A3-3C33-4E62-88E4-F532A04B1CDA}.Release R26|Any CPU.Build.0 = Release R26|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7B239E6A-393A-48F1-9788-7F11B3D494FB}
+	EndGlobalSection
+EndGlobal

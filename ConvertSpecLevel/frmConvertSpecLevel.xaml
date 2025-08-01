@@ -1,0 +1,108 @@
+﻿<Window x:Class="ConvertSpecLevel.frmConvertSpecLevel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ConvertSpecLevel"
+        mc:Ignorable="d"
+                Title="Convert Spec Level" Height="290" Width="320"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="35"/>
+            <RowDefinition Height="55"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="35"/>
+            <RowDefinition Height="35"/>
+            <RowDefinition Height="35"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="35"/>
+        </Grid.RowDefinitions>
+
+        <!--Client Name Section-->
+        <Grid Grid.Row="0" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Client Name:" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1" x:Name="cmbClient" Height="25" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+        </Grid>
+
+        <!--Spec level Section-->
+        <StackPanel Grid.Row="1">
+            <Label Content="Convert to Spec Level:" Margin="0,0,0,5"/>
+            <StackPanel Margin="10,0,0,0" Orientation="Horizontal">
+                <RadioButton x:Name="rbCompleteHome" 
+                   Content="Complete Home" 
+                   GroupName="SpecLevel" 
+                   IsChecked="True" 
+                   Margin="0,0,20,0"
+                   Checked="SpecLevel_Changed"/>
+                <RadioButton x:Name="rbCompleteHomePlus" 
+                   Content="Complete Home Plus" 
+                   GroupName="SpecLevel"
+                   Checked="SpecLevel_Changed"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!--MW Cabinet Height Section-->
+        <Grid Grid.Row="3" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="85"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="MW Cabinet Height:" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1" x:Name="cmbMWCabHeight" Height="25" Width="75" HorizontalAlignment="Left" />
+        </Grid>
+
+        <!--Dynamic Row 1-->
+        <Grid x:Name="spDynamicRow1" Grid.Row="4" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="85"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Select cabinet to remove:" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <Button Grid.Column="1" x:Name="btnDynamicRow1" Content="Select" Width="75" Height="25" HorizontalAlignment="Left" Click="btnDynamicRow1_Click"/>
+        </Grid>
+
+        <!--Dynamic Row 2-->
+        <Grid x:Name="spDynamicRow2" Grid.Row="5" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="85"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Select outlet to remove:" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <Button Grid.Column="1" x:Name="btnDynamicRow2" Content="Select" Width="75" Height="25" HorizontalAlignment="Left" Click="btnDynamicRow2_Click"/>
+        </Grid>
+
+        <!--Buttons Section-->
+        <StackPanel Grid.Row="7" 
+                   Orientation="Horizontal" 
+                   HorizontalAlignment="Right" 
+                   VerticalAlignment="Center">
+            <Button x:Name="btnOK" 
+                   Content="OK" 
+                   Width="75" 
+                   Height="25" 
+                   Margin="0,0,10,0" 
+                   IsDefault="True" 
+                   Click="btnOK_Click"/>
+            <Button x:Name="btnCancel" 
+                   Content="Cancel" 
+                   Width="75" 
+                   Height="25" 
+                   Margin="0,0,10,0" 
+                   IsCancel="True" 
+                   Click="btnCancel_Click"/>
+            <Button x:Name="btnHelp" 
+                   Content="Help" 
+                   Width="75" 
+                   Height="25" 
+                   Click="btnHelp_Click"/>
+        </StackPanel>
+
+    </Grid>
+</Window>
