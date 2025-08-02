@@ -1,4 +1,5 @@
 ﻿using ConvertSpecLevel.Classes;
+using ConvertSpecLevel.Common;
 
 namespace ConvertSpecLevel
 {
@@ -13,17 +14,25 @@ namespace ConvertSpecLevel
             Document curDoc = uidoc.Document;
 
             // get all the levels in the project
+            List<Level> listLevels = new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Levels)
+                .OfType<Level>()
+                .ToList();
 
             // check for two story plan
-            // look for a level named Second Floor or Upper Level
-            // if found notify user & exit command
-            // if not found continue executing the code
+            foreach (Level curLevel in listLevels)
+            {
+                // look for a level named Second Floor or Upper Level
+                if (curLevel.Name == "Second Floor" || curLevel.Name == "Upper Level")
+                {
+                    // if found notify user & end command
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Multi-story plan detected. Plate change not applicable.");
+                    return Result.Succeeded;
+                }
+            }
 
-            // filter the list to remove First Floor (or Main Level) level
-
-            // increase current value of plate heights by 12"
-
-            // notify user how many plates were raised
+            // Filter out First Floor/Main Level
+            listLevels = listLevels.Where(level => level.Name != "First Floor" && level.Name != "Main Level").ToList();
 
             // launch the form
             frmPlateChange curForm = new frmPlateChange()
@@ -38,6 +47,14 @@ namespace ConvertSpecLevel
             {
                 return Result.Cancelled;
             }
+
+
+
+            // increase current value of plate heights by 12"
+
+            // notify user how many plates were raised
+
+
 
             return Result.Succeeded;
         }
