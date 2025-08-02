@@ -10,7 +10,7 @@ namespace ConvertSpecLevel
             // Revit application and document variables
             UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            Document curDoc = uidoc.Document;
 
             // Your code goes here
 
@@ -34,6 +34,4 @@ namespace ConvertSpecLevel
             return myButtonData.Data;
         }
     }
-
-
 }
