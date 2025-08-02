@@ -119,5 +119,32 @@
         }
 
         #endregion
+
+        #region Views
+
+        public static List<View> GetAllSectionViews(Document curDoc)
+        {
+            //get all ViewSection views
+            FilteredElementCollector m_colViews = new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Views)
+                .OfClass(typeof(ViewSection));
+
+            // create an empty list to hold the views
+            List<View> m_Views = new List<View>();
+
+            // loop through each view & add it to the list
+            foreach (View x in m_colViews)
+            {
+                if (x.IsTemplate == false)
+                {
+                    m_Views.Add(x);
+                }
+            }
+
+            // return the list of views
+            return m_Views;
+        }
+
+        #endregion
     }
 }

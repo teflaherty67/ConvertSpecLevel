@@ -34,29 +34,82 @@ namespace ConvertSpecLevel
             // Filter out First Floor/Main Level
             listLevels = listLevels.Where(level => level.Name != "First Floor" && level.Name != "Main Level").ToList();
 
-            // launch the form
-            frmPlateChange curForm = new frmPlateChange()
-            {
-                Topmost = true,
-            };
+            // get all the ViewSection views
+            List<View> listViews = Utils.GetAllSectionViews(curDoc);
 
-            curForm.ShowDialog();
+            // get the first view whose Title on Sheet is "Front Elevation"
+            View elevFront = listViews
+                .FirstOrDefault(v => v.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.AsString() == "Front Elevation");
 
-            // check if user clicked OK
-            if (curForm.DialogResult != true)
+            // set that view as the active view
+            if (elevFront != null)
             {
-                return Result.Cancelled;
+                uidoc.ActiveView = elevFront;
+            }
+            else
+            {
+                Utils.TaskDialogInformation("Information", "Spec Conversion", "Front Elevation view not found. Proceeding with level adjustments in current view.");
             }
 
+            // launch the form
+            frmPlateChange curForm = new frmPlateChange();
+            curForm.Topmost = true;
 
+            // check if the user clicks OK
+            if (curForm.ShowDialog() == true)
+            {
+                // get the selected spec level from the form
+                string selectedSpecLevel = curForm.GetSelectedSpecLevel();
 
-            // increase current value of plate heights by 12"
+                // test for raising or lowering plates
+                bool raisePlates = (selectedSpecLevel == "Complete Home Plus");                
 
-            // notify user how many plates were raised
+                // create counter for levels changed
+                int countLevels = 0;
 
+                // create and start a transaction
+                using (Transaction t = new Transaction(curDoc, "Adjust Plate Heights"))
+                {
+                    t.Start();
 
+                    if (!raisePlates)
+                    {
+                        // lower the plates by 12"
+                        foreach (Level curLevel in listLevels)
+                        {
+                            curLevel.Elevation = curLevel.Elevation - 1.0;
 
-            return Result.Succeeded;
+                            // increment the counter
+                            countLevels++;
+                        }
+                    }
+                    else
+                    {
+                        // raise the plates by 12"
+                        foreach(Level curLevel in listLevels)
+                        {
+                            curLevel.Elevation = curLevel.Elevation + 1.0;
+
+                            // increment the counter
+                            countLevels++;
+                        }
+                    }
+
+                    t.Commit();
+                }
+
+                // notify the user
+                Utils.TaskDialogInformation("Information", "Spec Conversion", $"{countLevels} Level{(countLevels == 1 ? "" : "s")}" +
+                    $" {(countLevels == 1 ? "was" : "were")} adjusted per the specified spec level.");
+
+                return Result.Succeeded;
+            }
+
+            // if user clicks on Cancel
+            else
+            {
+                return Result.Cancelled;
+            }            
         }
 
         internal static PushButtonData GetButtonData()
