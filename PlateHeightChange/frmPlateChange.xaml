@@ -1,0 +1,61 @@
+﻿<Window x:Class="ConvertSpecLevel.frmPlateChange"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ConvertSpecLevel"
+        mc:Ignorable="d"
+        Title="Convert Spec Level" Height="130" Width="320"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50"/>           
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="35"/>
+        </Grid.RowDefinitions>
+
+        <!--Spec level Section-->
+        <StackPanel Grid.Row="0">
+            <Label Content="Convert to Spec Level:" Margin="0,0,0,5"/>
+            <StackPanel Margin="10,0,0,0" Orientation="Horizontal">
+                <RadioButton x:Name="rbCompleteHome" 
+           Content="Complete Home" 
+           GroupName="SpecLevel" 
+           IsChecked="True" 
+           Margin="0,0,20,0"/>
+                <RadioButton x:Name="rbCompleteHomePlus" 
+           Content="Complete Home Plus" 
+           GroupName="SpecLevel"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!--Buttons Section-->
+        <StackPanel Grid.Row="2" 
+            Orientation="Horizontal" 
+            HorizontalAlignment="Right" 
+            VerticalAlignment="Center">
+            <Button x:Name="btnOK" 
+            Content="OK" 
+            Width="75" 
+            Height="25" 
+            Margin="0,0,10,0" 
+            IsDefault="True" 
+            Click="btnOK_Click"/>
+            <Button x:Name="btnCancel" 
+            Content="Cancel" 
+            Width="75" 
+            Height="25" 
+            Margin="0,0,10,0" 
+            IsCancel="True" 
+            Click="btnCancel_Click"/>
+            <Button x:Name="btnHelp" 
+            Content="Help" 
+            Width="75" 
+            Height="25" 
+            Click="btnHelp_Click"/>
+        </StackPanel>
+
+    </Grid>
+</Window>

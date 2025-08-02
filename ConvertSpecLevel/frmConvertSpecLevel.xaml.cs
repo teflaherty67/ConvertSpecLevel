@@ -23,5 +23,20 @@ namespace ConvertSpecLevel
         {
             InitializeComponent();
         }
+
+        private void btnOK_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void btnCancel_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void btnHelp_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }
