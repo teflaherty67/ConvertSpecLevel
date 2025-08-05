@@ -4,7 +4,7 @@ using ConvertSpecLevel.Common;
 namespace ConvertSpecLevel
 {
     [Transaction(TransactionMode.Manual)]
-    public class cmdPlateChange : IExternalCommand
+    public class cmdAdjustPlates : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -52,7 +52,7 @@ namespace ConvertSpecLevel
             }
 
             // launch the form
-            frmPlateChange curForm = new frmPlateChange();
+            frmAdjustPlates curForm = new frmAdjustPlates();
             curForm.Topmost = true;
 
             // check if the user clicks OK

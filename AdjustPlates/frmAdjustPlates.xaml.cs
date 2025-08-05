@@ -17,9 +17,9 @@ namespace ConvertSpecLevel
     /// <summary>
     /// Interaction logic for frmPlateHeightChange.xaml
     /// </summary>
-    public partial class frmPlateChange : Window
+    public partial class frmAdjustPlates : Window
     {
-        public frmPlateChange()
+        public frmAdjustPlates()
         {
             InitializeComponent();
         }
