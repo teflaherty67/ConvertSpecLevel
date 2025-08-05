@@ -2,6 +2,25 @@
 {
     internal static class Utils
     {
+        #region Elements - Architectural
+        
+        //return list of all windows in the current model
+        public static List<FamilyInstance> GetAllWindows(Document curDoc)
+        {
+            //get all windows
+            var returnList = new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Windows)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .ToList();
+
+            return returnList;
+        }
+
+        #endregion
+
+        #region Ribbon Panel
+
         internal static RibbonPanel CreateRibbonPanel(UIControlledApplication app, string tabName, string panelName)
         {
             RibbonPanel curPanel;
@@ -25,6 +44,8 @@
 
             return null;
         }
+
+        #endregion
 
         #region Task Dialog
 

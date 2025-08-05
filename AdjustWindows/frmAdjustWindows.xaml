@@ -5,13 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConvertSpecLevel"
         mc:Ignorable="d"
-        Title="Convert Spec Level" Height="150" Width="320"
+        Title="Convert Spec Level" Height="200" Width="330"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="50"/>
+            <RowDefinition Height="60"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="35"/>
         </Grid.RowDefinitions>
@@ -31,8 +32,21 @@
             </StackPanel>
         </StackPanel>
 
+        <!--Adjust Windows Section-->
+        <StackPanel Grid.Row="1" Margin="0,10,0,0">
+            <CheckBox x:Name="chkAdjustWindowHeadHeights" 
+                      Content="Adjust window head heights with plate adjustment" 
+                      Margin="10,0,0,10"
+                      Checked="chkAdjustWindowHeadHeights_Checked"
+                      Unchecked="chkAdjustWindowHeadHeights_Unchecked"/>
+            <CheckBox x:Name="chkAdjustWindowHeights" 
+                      Content="Adjust window heights with plate adjustments" 
+                      Margin="10,0,0,0"
+                      IsEnabled="False"/>
+        </StackPanel>
+
         <!--Buttons Section-->
-        <StackPanel Grid.Row="2" 
+        <StackPanel Grid.Row="3" 
             Orientation="Horizontal" 
             HorizontalAlignment="Right" 
             VerticalAlignment="Center">

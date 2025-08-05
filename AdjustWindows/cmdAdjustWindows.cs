@@ -1,4 +1,5 @@
 ﻿using ConvertSpecLevel.Classes;
+using ConvertSpecLevel.Common;
 
 namespace ConvertSpecLevel
 {
@@ -10,9 +11,40 @@ namespace ConvertSpecLevel
             // Revit application and document variables
             UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            Document curDoc = uidoc.Document;
 
-            // Your code goes here
+            // get all the window instances in the project
+            List<FamilyInstance> allWindows = Utils.GetAllWindows(curDoc);
+
+            // create a dictionary to hold the window data
+            Dictionary<ElementId, clsWindowData> dictionaryWinData = new Dictionary<ElementId, clsWindowData>();
+
+            // loop through the windows and get the data to store
+            foreach (FamilyInstance curWindow in allWindows)
+            {
+                clsWindowData curData = new clsWindowData(curWindow);
+                dictionaryWinData.Add(curWindow.Id, curData);
+            }
+
+
+
+            // store the current head heights
+
+            // store the current window height
+
+            // launch the form
+            frmAdjustWindows curForm = new frmAdjustWindows()
+            {
+                Topmost = true,
+            };
+
+            curForm.ShowDialog();
+
+            // check if user clicked OK
+            if (curForm.DialogResult != true)
+            {
+                return Result.Cancelled;
+            }
 
             return Result.Succeeded;
         }
