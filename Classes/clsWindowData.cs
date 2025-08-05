@@ -9,8 +9,8 @@ namespace ConvertSpecLevel.Classes
     internal class clsWindowData
     {
         public FamilyInstance WindowInstance { get; set; }
-        public double CurrentHeadHeight { get; set; }
-        public double CurrentWindowHeight { get; set; }
+        public double CurHeadHeight { get; set; }
+        public double CurWindowHeight { get; set; }
         public Parameter HeadHeightParam { get; set; }
         public Parameter WindowHeightParam { get; set; }
 
@@ -18,12 +18,12 @@ namespace ConvertSpecLevel.Classes
         {
             WindowInstance = window;
             // Get the parameters you need to modify
-            HeadHeightParam = window.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM); // or whatever the parameter name is
-            WindowHeightParam = window.LookupParameter("Height"); // or sill height, etc.
+            HeadHeightParam = window.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM); // get the current head height
+            WindowHeightParam = window.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM); // get the current height
 
             // Store current values
-            CurrentHeadHeight = HeadHeightParam?.AsDouble() ?? 0.0;
-            CurrentWindowHeight = WindowHeightParam?.AsDouble() ?? 0.0;
+            CurHeadHeight = HeadHeightParam?.AsDouble() ?? 0.0;
+            CurWindowHeight = WindowHeightParam?.AsDouble() ?? 0.0;
         }
     }
 }
