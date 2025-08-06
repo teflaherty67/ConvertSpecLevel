@@ -19,7 +19,7 @@ namespace ConvertSpecLevel.Classes
             WindowInstance = window;
             // Get the parameters you need to modify
             HeadHeightParam = window.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM); // get the current head height
-            WindowHeightParam = window.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM); // get the current height
+            WindowHeightParam = window.Symbol.get_Parameter(BuiltInParameter.WINDOW_HEIGHT); // get the current height
 
             // Store current values
             CurHeadHeight = HeadHeightParam?.AsDouble() ?? 0.0;
