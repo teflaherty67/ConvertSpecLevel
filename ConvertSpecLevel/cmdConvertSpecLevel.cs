@@ -69,6 +69,9 @@ namespace ConvertSpecLevel
                     // change the flooring for the specified rooms per the selected spec level
                     List<string> listUpdatedRooms = UpdateFloorFinishInActiveView(curDoc, selectedSpecLevel);
 
+                    // manage the floor material breaks
+                    ManageFloorMaterialBreaksInActiveView(curDoc, selectedSpecLevel);
+
                     // create a list of the rooms updated
                     string listRooms;
                     if (listUpdatedRooms.Count == 1)
@@ -104,6 +107,8 @@ namespace ConvertSpecLevel
 
             return Result.Succeeded;
         }
+
+       
 
         #region Finish Floor Methods
 
@@ -200,6 +205,53 @@ namespace ConvertSpecLevel
 
             // return the matching rooms
             return m_matchingRooms;
+        }
+
+        private void ManageFloorMaterialBreaksInActiveView(Document curDoc, string selectedSpecLevel)
+        {
+            if (selectedSpecLevel == "Complete Home Plus")
+            {
+                // remove the floor material breaks
+                RemoveFloorMaterialBreaks(curDoc);
+            }
+            else if (selectedSpecLevel == "Complete Home")
+            {
+                // add floor material breaks
+                AddFloorMaterialBreaks(curDoc);
+            }
+        }        
+
+        private void RemoveFloorMaterialBreaks(Document curDoc)
+        {
+            // get all the doors in the active view
+            List<FamilyInstance> allDoorsInView = Utils.GetAllDoorsInActiveView(curDoc);
+
+            // loop through each door
+            foreach(FamilyInstance curDoor in allDoorsInView)
+            {
+                // get ToRoom & FromRoom values
+                Room toRoom = curDoor.ToRoom;
+                Room fromRoom = curDoor.FromRoom;
+
+                // check for null
+                if (toRoom == null || fromRoom == null)
+                {
+                    continue;
+                }
+
+                // check for match
+                if (toRoom.LookupParameter("Floor Finish").AsString() == (fromRoom.LookupParameter("Floor Finish").AsString()))
+                {
+                    // if material matches, find & delete material breaks
+                }
+            }           
+
+            throw new NotImplementedException();
+        }
+
+        private void AddFloorMaterialBreaks(Document curDoc)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion

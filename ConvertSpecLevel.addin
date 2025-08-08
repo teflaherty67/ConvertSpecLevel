@@ -4,7 +4,7 @@
     <Text>ConvertSpecLevel - Command 1</Text>
     <Description>Some description</Description>
     <Assembly>ConvertSpecLevel\ConvertSpecLevel.dll</Assembly>
-    <FullClassName>ConvertSpecLevel.cmdAdjustWindows</FullClassName>
+    <FullClassName>ConvertSpecLevel.cmdConvertSpecLevel</FullClassName>
     <ClientId>f6c01874-c687-44a1-9c43-0d2c46883498</ClientId>
     <VendorId>com.YOUR COMPANY NAME</VendorId>
     <VendorDescription>YOUR COMPANY NAME, YOUR COMPANY URL</VendorDescription>

@@ -111,6 +111,15 @@ namespace ConvertSpecLevel
 
         #endregion
 
+        #region Dynamic Controls
+
+        private void SpecLevel_Changed(object sender, RoutedEventArgs e)
+        {
+            // UpdateDynamicContent();
+        }
+
+        #endregion
+
         #region Buttons Section
 
         private void btnOK_Click(object sender, RoutedEventArgs e)
