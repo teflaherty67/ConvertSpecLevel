@@ -27,12 +27,27 @@ namespace ConvertSpecLevel
             }
 
             // get user input from form
-
-
-
+            // get user input from the form
+            string selectedClient = curForm.GetSelectedClient();
+            string selectedSpecLevel = curForm.GetSelectedSpecLevel();
+            string selectedMWCabHeight = curForm.GetSelectedMWCabHeight();
 
             #endregion
-            // Your code goes here
+
+            #region Transaction Group
+
+            // create a transaction group
+            using (TransactionGroup transgroup = new TransactionGroup(curDoc, "Convert Spec Level"))
+            {
+                // start the transaction group
+                transgroup.Start();
+
+
+                // commit the transaction group
+                transgroup.Assimilate();
+            }
+
+            #endregion
 
             return Result.Succeeded;
         }

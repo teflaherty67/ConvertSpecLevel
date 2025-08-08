@@ -23,6 +23,10 @@ namespace ConvertSpecLevel
     /// </summary>
     public partial class frmConvertSpecLevel : Window
     {
+        // properties for form return values
+        public string SelectedClientName { get; private set; }
+        public bool IsCompleteHomePlus { get; private set; }
+        public string SelectedMWCabHeight { get; private set; }
 
 
         #region Constructors
@@ -77,6 +81,32 @@ namespace ConvertSpecLevel
             // Set the default selection to the first height in the list
             if (cmbMWCabHeight.Items.Count > 0)
                 cmbMWCabHeight.SelectedIndex = 0;
+        }
+
+        #endregion
+
+        #region Form Controls
+
+        public string GetSelectedClient()
+        {
+            return cmbClient.SelectedItem as string;
+        }
+
+        public string GetSelectedSpecLevel()
+        {
+            if (rbCompleteHome.IsChecked == true)
+            {
+                return rbCompleteHome.Content.ToString();
+            }
+            else
+            {
+                return rbCompleteHomePlus.Content.ToString();
+            }
+        }
+
+        public string GetSelectedMWCabHeight()
+        {
+            return cmbMWCabHeight.SelectedItem as string;
         }
 
         #endregion
