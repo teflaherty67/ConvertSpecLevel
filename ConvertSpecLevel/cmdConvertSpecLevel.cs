@@ -1,4 +1,5 @@
 ﻿using ConvertSpecLevel.Classes;
+using ConvertSpecLevel.Common;
 
 namespace ConvertSpecLevel
 {
@@ -42,6 +43,57 @@ namespace ConvertSpecLevel
                 // start the transaction group
                 transgroup.Start();
 
+                #region Floor Finish Updates
+
+                // get a first floor annotation view & set it as the active view
+                View curView = Utils.GetViewByNameContainsAndAssociatedLevel(curDoc, "Annotation", "First Floor");
+
+                // check for null
+                if (curView != null)
+                {
+                    uidoc.ActiveView = curView;
+                }
+                else
+                {
+                    // if null notify the user
+                    Utils.TaskDialogWarning("Warning", "Spec Conversion", "No view found with name containing 'Annotation' and associated level 'First Floor'");
+                }
+
+                // create a transaction for the flooring update
+                using (Transaction t = new Transaction(curDoc, "Update Floor Finish"))
+                {
+                    // start the first transaction
+                    t.Start();
+
+                    // change the flooring for the specified rooms per the selected spec level
+                    List<string> listUpdatedRooms = UpdateFloorFinishInActiveView(curDoc, selectedSpecLevel);
+
+                    // create a list of the rooms updated
+                    string listRooms;
+                    if (listUpdatedRooms.Count == 1)
+                    {
+                        listRooms = listUpdatedRooms[0];
+                    }
+                    else if (listUpdatedRooms.Count == 2)
+                    {
+                        listRooms = $"{listUpdatedRooms[0]} and {listUpdatedRooms[1]}";
+                    }
+                    else
+                    {
+                        listRooms = string.Join(", ", listUpdatedRooms.Take(listUpdatedRooms.Count - 1)) + $", and {listUpdatedRooms.Last()}";
+                    }
+
+                    // notify the user
+                    Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
+
+                    // commit the transaction
+                    t.Commit();
+                }
+
+                #endregion
+
+
+
 
                 // commit the transaction group
                 transgroup.Assimilate();
@@ -50,6 +102,11 @@ namespace ConvertSpecLevel
             #endregion
 
             return Result.Succeeded;
+        }
+
+        private List<string> UpdateFloorFinishInActiveView(Document curDoc, string selectedSpecLevel)
+        {
+            throw new NotImplementedException();
         }
 
         internal static PushButtonData GetButtonData()

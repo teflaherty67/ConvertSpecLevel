@@ -1,4 +1,5 @@
-﻿namespace ConvertSpecLevel.Common
+﻿
+namespace ConvertSpecLevel.Common
 {
     internal static class Utils
     {
@@ -164,6 +165,11 @@
 
             // return the list of views
             return m_Views;
+        }
+
+        internal static View GetViewByNameContainsAndAssociatedLevel(Document curDoc, string v1, string v2)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion
