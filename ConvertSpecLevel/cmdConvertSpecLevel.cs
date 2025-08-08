@@ -12,6 +12,26 @@ namespace ConvertSpecLevel
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document curDoc = uidoc.Document;
 
+            #region Form
+
+            // launch the form
+            frmConvertSpecLevel curForm = new frmConvertSpecLevel();
+            curForm.Topmost = true;
+
+            curForm.ShowDialog();
+
+            // check if user clicked Cancel
+            if (curForm.DialogResult != true)
+            {
+                return Result.Cancelled;
+            }
+
+            // get user input from form
+
+
+
+
+            #endregion
             // Your code goes here
 
             return Result.Succeeded;
