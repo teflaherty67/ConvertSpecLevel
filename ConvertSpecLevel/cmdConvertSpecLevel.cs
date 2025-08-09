@@ -242,11 +242,49 @@ namespace ConvertSpecLevel
                 // check for match
                 if (toRoom.LookupParameter("Floor Finish").AsString() == (fromRoom.LookupParameter("Floor Finish").AsString()))
                 {
-                    // if material matches, find & delete material breaks
-                }
-            }           
+                    // if material matches, get the door's location point
+                    LocationPoint doorLoc = curDoor.Location as LocationPoint;
+                    XYZ doorPoint = doorLoc.Point;
 
-            throw new NotImplementedException();
+                    // check for null
+                    if (doorLoc == null || doorPoint == null)
+                    {
+                        continue;
+                    }
+
+                    // get all the floor material breaks in the active view
+                    List<FamilyInstance> m_allMaterialBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
+                        .OfClass(typeof(FamilyInstance))
+                        .OfCategory(BuiltInCategory.OST_FurnitureSystems)
+                        .Cast<FamilyInstance>()
+                        .Where(fi => fi.Symbol.Family.Name == "Floor Material")
+                        .ToList();
+
+                    foreach (FamilyInstance curBreak in m_allMaterialBreaks)
+                    {
+                        // get the material break location point
+                        LocationCurve breakLoc = curBreak.Location as LocationCurve;
+                        Curve breakCurve = breakLoc.Curve;
+                        XYZ breakPoint = breakCurve.Evaluate(0.5, true);
+
+                        // check for null
+                        if (breakLoc == null || breakPoint == null)
+                        {
+                            continue;
+                        }
+                        
+                        // calculate the distance between doorPoint & breakPoint
+                        double distance = doorPoint.DistanceTo(breakPoint);
+
+                        // check if distance is 18" or less
+                        if (distance <= 1.5)
+                        {
+                            // if so, delete the material break
+                            curDoc.Delete(curBreak.Id);
+                        }
+                    }
+                }
+            }
         }
 
         private void AddFloorMaterialBreaks(Document curDoc)
