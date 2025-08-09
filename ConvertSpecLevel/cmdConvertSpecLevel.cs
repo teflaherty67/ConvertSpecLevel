@@ -393,20 +393,46 @@ namespace ConvertSpecLevel
                         // get the curve property from the wall
                         Curve wallCurve = wallLoc.Curve;
 
+                        // get the work plane
+                        Level workPlane = curDoc.GetElement(curDoc.ActiveView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
+
                         // cast the curve to a line
                         Line wallLine = wallCurve as Line;
                         if (wallLine != null)
                         {
                             // get the wall direction
                             XYZ wallDirection = wallLine.Direction;
+
+                            // get the center of the door opening
+                            XYZ doorCenter = wallLine.Evaluate(0.5, true);
+
+                            // create a perpendicular vector
+                            XYZ perpendicular = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+
+                            // create start point
+                            XYZ startPoint = doorCenter-(perpendicular * (drWidthParam / 2));
+
+                            // create end point
+                            XYZ endPoint = doorCenter + (perpendicular * (drWidthParam / 2));
+
+                            // create a line to place the break
+                            Line breakLine = Line.CreateBound(startPoint, endPoint);
+
+                            // create a new Floor Material instance
+                            FamilyInstance newBreak = curDoc.Create.NewFamilyInstance(doorPoint, materialSymbol, workPlane, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+
+                            // set the length of the break
+                            //newBreak.LookupParameter("Length").Set(drWidthParam);
+
+                            // set the floor finish for the FromRoom
+                            string fromRmFinish = fromRoom.LookupParameter("Floor Finish").AsString();
+                            newBreak.LookupParameter("Floor 1").Set(fromRmFinish);
+
+                            // set the floor finish for the FromRoom
+                            string toRmFinish = toRoom.LookupParameter("Floor Finish").AsString();
+                            newBreak.LookupParameter("Floor 2").Set(toRmFinish);
                         }
-
-                        // create perpendicular vector
-                        XYZ doorCenter = wallLine.Evaluate(0.5, true);
-
-                        // do something
-                    }
-                    
+                    }                    
                 }
             }
         }
