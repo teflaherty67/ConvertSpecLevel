@@ -289,7 +289,126 @@ namespace ConvertSpecLevel
 
         private void AddFloorMaterialBreaks(Document curDoc)
         {
-            throw new NotImplementedException();
+            // get all the doors in the active view
+            List<FamilyInstance> allDoorsInView = Utils.GetAllDoorsInActiveView(curDoc);
+
+            // loop through each door
+            foreach (FamilyInstance curDoor in allDoorsInView)
+            {
+                // get ToRoom & FromRoom values
+                Room toRoom = curDoor.ToRoom;
+                Room fromRoom = curDoor.FromRoom;
+
+                // check for null
+                if (toRoom == null || fromRoom == null)
+                {
+                    continue;
+                }
+
+                // check for non-match
+                if (toRoom.LookupParameter("Floor Finish").AsString() != (fromRoom.LookupParameter("Floor Finish").AsString()))
+                {
+                    // if materials do not match, get the door's location point
+                    LocationPoint doorLoc = curDoor.Location as LocationPoint;
+                    XYZ doorPoint = doorLoc.Point;
+
+                    // check for null
+                    if (doorLoc == null || doorPoint == null)
+                    {
+                        continue;
+                    }
+
+                    // get all the floor material breaks in the active view
+                    List<FamilyInstance> m_allMaterialBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
+                        .OfClass(typeof(FamilyInstance))
+                        .OfCategory(BuiltInCategory.OST_FurnitureSystems)
+                        .Cast<FamilyInstance>()
+                        .Where(fi => fi.Symbol.Family.Name == "Floor Material")
+                        .ToList();
+
+                    // declare a boolean flag
+                    bool breakExists = false;
+
+                    foreach (FamilyInstance curBreak in m_allMaterialBreaks)
+                    {
+                        // get the material break location point
+                        LocationCurve breakLoc = curBreak.Location as LocationCurve;
+                        Curve breakCurve = breakLoc.Curve;
+                        XYZ breakPoint = breakCurve.Evaluate(0.5, true);
+
+                        // check for null
+                        if (breakLoc == null || breakPoint == null)
+                        {
+                            continue;
+                        }
+
+                        // calculate the distance between doorPoint & breakPoint
+                        double distance = doorPoint.DistanceTo(breakPoint);
+
+                        // check if distance is 18" or less
+                        if (distance <= 1.5)
+                        {
+                            // skip this door & go to the next
+                            breakExists = true;
+                            break;
+                        }
+                    }
+
+                    if (!breakExists)
+                    {
+                        // load the current family into the project
+                        Family materialFamily = Utils.LoadFamilyFromLibrary(curDoc,
+                            @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation", "LD_AN_Floor_Material");
+
+                        // get the type from the family
+                        FamilySymbol materialSymbol = Utils.GetFamilySymbolByName(curDoc, materialFamily.Name, "Type 1");
+
+                        // activate the family & symbol
+                        if (!materialSymbol.IsActive)
+                        {
+                            materialSymbol.Activate();
+                        }
+
+                        // get the door width
+                        double drWidthParam = curDoor.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble();
+
+                        // get the wall that hosts the door
+                        Wall drWall = curDoor.Host as Wall;
+
+                        // null check for host
+                        if (drWall == null)
+                        {
+                            continue;
+                        }
+
+                        // get wall location curve
+                        LocationCurve wallLoc = drWall.Location as LocationCurve;
+
+                        // check for null curve
+                        if (wallLoc == null)
+                        {
+                            continue;
+                        }
+
+                        // get the curve property from the wall
+                        Curve wallCurve = wallLoc.Curve;
+
+                        // cast the curve to a line
+                        Line wallLine = wallCurve as Line;
+                        if (wallLine != null)
+                        {
+                            // get the wall direction
+                            XYZ wallDirection = wallLine.Direction;
+                        }
+
+                        // create perpendicular vector
+                        XYZ doorCenter = wallLine.Evaluate(0.5, true);
+
+                        // do something
+                    }
+                    
+                }
+            }
         }
 
         #endregion

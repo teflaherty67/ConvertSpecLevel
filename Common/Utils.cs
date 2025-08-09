@@ -48,6 +48,129 @@ namespace ConvertSpecLevel.Common
 
         #endregion
 
+        #region Families
+
+        /// <summary>
+        /// Finds a family symbol by family name and type name
+        /// </summary>        
+        /// <returns>The family symbol or null if not found</returns>
+        internal static FamilySymbol FindFamilySymbol(Document curDoc, string familyName, string typeName)
+        {
+            return new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .FirstOrDefault(fs => fs.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase) &&
+                                     fs.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        internal static Family LoadFamilyFromLibrary(Document curDoc, String filePath, string familyName)
+        {
+            // create the full path to the family file
+            string familyPath = Path.Combine(filePath, familyName + ".rfa");
+
+            // Check if the family file exists at the specified path
+            if (!System.IO.File.Exists(familyPath))
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Family file not found at: {familyPath}");
+                return null;
+            }
+
+            try
+            {
+                var loadOptions = new FamilyLoadOptions();
+                curDoc.LoadFamily(familyPath, loadOptions, out Family loadedFamily);
+                return loadedFamily; // This will be null if loading failed
+            }
+            catch (Exception ex)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Error loading family: {ex.Message}");
+                return null; // Return null if an error occurs during loading
+            }
+        }
+
+        internal static FamilySymbol GetFamilySymbolByName(Document curDoc, string familyName, string typeName)
+        {
+            List<Family> m_famList = GetAllFamilies(curDoc);
+
+            // loop through families in current document and look for match
+            foreach (Family curFam in m_famList)
+            {
+                if (curFam.Name == familyName)
+                {
+                    // get family symbol from family
+                    ISet<ElementId> fsList = curFam.GetFamilySymbolIds();
+
+                    // loop through family symbol ids and look for match
+                    foreach (ElementId fsID in fsList)
+                    {
+                        FamilySymbol fs = curDoc.GetElement(fsID) as FamilySymbol;
+
+                        if (fs.Name == typeName)
+                        {
+                            return fs;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static List<Family> GetAllFamilies(Document curDoc)
+        {
+            List<Family> m_returnList = new List<Family>();
+
+            FilteredElementCollector m_colFamilies = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(Family));
+
+            foreach (Family family in m_colFamilies)
+            {
+                m_returnList.Add(family);
+            }
+
+            return m_returnList;
+        }
+
+        public static List<FamilyInstance> GetAllGenericFamilies(Document curDoc)
+        {
+            ElementClassFilter m_famFilter = new ElementClassFilter(typeof(FamilyInstance));
+            ElementCategoryFilter m_typeFilter = new ElementCategoryFilter(BuiltInCategory.OST_GenericModel);
+            LogicalAndFilter andFilter = new LogicalAndFilter(m_famFilter, m_typeFilter);
+
+            FilteredElementCollector m_colGM = new FilteredElementCollector(curDoc);
+            m_colGM.WherePasses(andFilter);
+
+            List<FamilyInstance> m_famList = new List<FamilyInstance>();
+
+            foreach (FamilyInstance curFam in m_colGM)
+            {
+                m_famList.Add(curFam);
+            }
+
+            return m_famList;
+        }
+
+        /// <summary>
+        /// Family load options class to handle overwrite behavior
+        /// </summary>
+        public class FamilyLoadOptions : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            {
+                overwriteParameterValues = true;
+                return true;
+            }
+
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            {
+                source = FamilySource.Family;
+                overwriteParameterValues = true;
+                return true;
+            }
+        }
+
+        #endregion
+
         #region Ribbon Panel
 
         internal static RibbonPanel CreateRibbonPanel(UIControlledApplication app, string tabName, string panelName)
@@ -254,6 +377,7 @@ namespace ConvertSpecLevel.Common
         }
 
        
+
 
         #endregion
     }
