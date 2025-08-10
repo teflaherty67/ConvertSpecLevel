@@ -419,7 +419,7 @@ namespace ConvertSpecLevel
                             Line breakLine = Line.CreateBound(startPoint, endPoint);
 
                             // create a new Floor Material instance
-                            FamilyInstance newBreak = curDoc.Create.NewFamilyInstance(doorPoint, materialSymbol, workPlane, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                            FamilyInstance newBreak = curDoc.Create.NewFamilyInstance(breakLine, materialSymbol, workPlane, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
                             // set the length of the break
                             //newBreak.LookupParameter("Length").Set(drWidthParam);
