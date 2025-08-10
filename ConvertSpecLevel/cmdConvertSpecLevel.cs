@@ -361,7 +361,7 @@ namespace ConvertSpecLevel
                             @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation", "LD_AN_Floor_Material");
 
                         // get the type from the family
-                        FamilySymbol materialSymbol = Utils.GetFamilySymbolByName(curDoc, materialFamily.Name, "Type 1");
+                        FamilySymbol materialSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_AN_Floor_Material", "Type 1");
 
                         // activate the family & symbol
                         if (!materialSymbol.IsActive)
