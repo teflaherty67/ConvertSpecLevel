@@ -403,17 +403,17 @@ namespace ConvertSpecLevel
                             // get the wall direction
                             XYZ wallDirection = wallLine.Direction;
 
-                            // get the center of the door opening
-                            XYZ doorCenter = wallLine.Evaluate(0.5, true);
+                            //// get the center of the door opening
+                            //XYZ doorCenter = wallLine.Evaluate(0.5, true);
 
-                            // create a perpendicular vector
-                            XYZ perpendicular = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+                            //// create a perpendicular vector
+                            //XYZ perpendicular = new XYZ(-wallDirection.Y, wallDirection.X, 0);
 
                             // create start point
-                            XYZ startPoint = doorCenter-(perpendicular * (drWidthParam / 2));
+                            XYZ startPoint = doorPoint - (wallDirection * (drWidthParam / 2));
 
-                            // create end point
-                            XYZ endPoint = doorCenter + (perpendicular * (drWidthParam / 2));
+                            // create end point  
+                            XYZ endPoint = doorPoint + (wallDirection * (drWidthParam / 2));
 
                             // create a line to place the break
                             Line breakLine = Line.CreateBound(startPoint, endPoint);
