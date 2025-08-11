@@ -509,12 +509,12 @@ namespace ConvertSpecLevel
         }
 
         /// <summary>
-        /// Loads a door family from the library to ensure most recent version
+        /// Loads a door family from the library, but only if it doesn't already exist in the project
         /// </summary>
         /// <param name="curDoc">The Revit document</param>
         /// <param name="typeDoor">The type of door ("Front" or "Rear")</param>
         /// <param name="specLevel">The spec level to determine which family to load</param>
-        /// <returns>True if family loaded successfully, false if loading failed</returns>
+        /// <returns>True if family exists or was loaded successfully, false if loading failed</returns>
         private static bool LoadDoorFamilyFromLibrary(Document curDoc, string typeDoor, string specLevel)
         {
             string familyName;
@@ -533,7 +533,7 @@ namespace ConvertSpecLevel
                 return false;
             }
 
-            // check if the door already exists in the project
+            // FIRST: Check if family already exists in the project
             var existingFamily = new FilteredElementCollector(curDoc)
                 .OfClass(typeof(Family))
                 .Cast<Family>()
@@ -541,28 +541,17 @@ namespace ConvertSpecLevel
 
             if (existingFamily != null)
             {
+                // Family already exists in project - no need to load from file
                 return true;
             }
 
-            string familyPath = $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors\{familyName}.rfa";
+            // SECOND: If family doesn't exist, load it from the library
+            Family loadedFamily = Utils.LoadFamilyFromLibrary(curDoc,
+                @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors",
+                familyName);
 
-            if (!System.IO.File.Exists(familyPath))
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Door family file not found at: {familyPath}");
-                return false;
-            }
-
-            try
-            {
-                var loadOptions = new Utils.FamilyLoadOptions();
-                bool familyLoaded = curDoc.LoadFamily(familyPath, loadOptions, out Family loadedFamily);
-                return familyLoaded;
-            }
-            catch (Exception ex)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Error loading door family: {ex.Message}");
-                return false;
-            }
+            // Return true if family was loaded successfully (not null)
+            return loadedFamily != null;
         }
 
         private static FamilySymbol FindDoorSymbol(Document curDoc, string typeName, string familyName)
