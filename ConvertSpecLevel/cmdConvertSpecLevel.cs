@@ -629,9 +629,9 @@ namespace ConvertSpecLevel
             if (string.IsNullOrWhiteSpace(fromRoomName) || string.IsNullOrWhiteSpace(toRoomName))
                 return false;
 
-            bool fromRoomMatch = fromRoomName.Contains("Entry", StringComparison.OrdinalIgnoreCase) ||
-                                 fromRoomName.Contains("Foyer", StringComparison.OrdinalIgnoreCase);
-            bool toRoomMatch = toRoomName.Contains("Covered Porch", StringComparison.OrdinalIgnoreCase);
+            bool toRoomMatch = toRoomName.Contains("Entry", StringComparison.OrdinalIgnoreCase) ||
+                                 toRoomName.Contains("Foyer", StringComparison.OrdinalIgnoreCase);
+            bool fromRoomMatch = fromRoomName.Contains("Covered Porch", StringComparison.OrdinalIgnoreCase);
 
             return fromRoomMatch && toRoomMatch;
         }
@@ -722,12 +722,12 @@ namespace ConvertSpecLevel
         private static bool IsRearDoorMatch(FamilyInstance curDoor)
         {
             // Check if door width is 32"
-            var widthParam = curDoor.get_Parameter(BuiltInParameter.DOOR_WIDTH);
+            var widthParam = curDoor.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH);
             bool widthMatch = widthParam != null &&
                               Math.Abs((widthParam.AsDouble() * 12.0) - 32.0) < 0.1;
 
             // Check if description contains "Exterior Entry"
-            var descParam = curDoor.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+            var descParam = curDoor.Symbol.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
             bool descriptionMatch = descParam?.AsString()?.Contains("Exterior Entry", StringComparison.OrdinalIgnoreCase) == true;
 
             return widthMatch && descriptionMatch;
