@@ -587,11 +587,33 @@ namespace ConvertSpecLevel
                 return;
             }
 
+            //string newDoorTypeName = GetFrontDoorType(specLevel);
+            //if (string.IsNullOrEmpty(newDoorTypeName))
+            //{
+            //    Utils.TaskDialogError("Error", "Spec Conversion", "Unable to determine front door type for spec level: " + specLevel);
+            //    return;
+            //}
+
             string newDoorTypeName = GetFrontDoorType(specLevel);
-            if (string.IsNullOrEmpty(newDoorTypeName))
+
+            // DEBUG: List all available types in the family
+            var allSymbols = new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Doors)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(ds => ds.Family.Name.Equals("LD_DR_Ext_Single 3_4 Lite_1 Panel", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var symbol in allSymbols)
             {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Unable to determine front door type for spec level: " + specLevel);
-                return;
+                System.Diagnostics.Debug.WriteLine($"Available type: {symbol.Name}, IsActive: {symbol.IsActive}");
+
+                // Try activating all types
+                if (!symbol.IsActive)
+                {
+                    symbol.Activate();
+                    System.Diagnostics.Debug.WriteLine($"Activated: {symbol.Name}");
+                }
             }
 
             var newDoorSymbol = FindDoorSymbol(curDoc, newDoorTypeName, "LD_DR_Ext_Single 3_4 Lite_1 Panel");
