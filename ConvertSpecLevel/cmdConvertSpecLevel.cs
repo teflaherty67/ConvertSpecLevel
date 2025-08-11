@@ -533,6 +533,17 @@ namespace ConvertSpecLevel
                 return false;
             }
 
+            // check if the door already exists in the project
+            var existingFamily = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(Family))
+                .Cast<Family>()
+                .FirstOrDefault(f => f.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingFamily != null)
+            {
+                return true;
+            }
+
             string familyPath = $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors\{familyName}.rfa";
 
             if (!System.IO.File.Exists(familyPath))
