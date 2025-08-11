@@ -96,7 +96,62 @@ namespace ConvertSpecLevel
 
                 #endregion
 
+                #region Door Updates
 
+                // get the door schedule & set it as the active view
+                View curSched = Utils.GetScheduleByNameContains(curDoc, "Door Schedule");
+
+                if (curSched != null)
+                {
+                    uidoc.ActiveView = curSched;
+                }
+                else
+                {
+                    // if not found alert the user
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No Door Schedule found.");
+                }
+
+                // create transaction for door updates
+                using (Transaction t = new Transaction(curDoc, "Update Doors"))
+                {
+                    // start the second transaction
+                    t.Start();
+
+                    // update front door type
+                    UpdateFrontDoor(curDoc, selectedSpecLevel);
+
+                    // update rear door type
+                    UpdateRearDoor(curDoc, selectedSpecLevel);
+
+                    // notify the user
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "The front and rear doors were replaced per the specified spec level.");
+                  
+                    // commit the transaction
+                    t.Commit();
+                }
+
+                #endregion
+
+                #region Cabinet Updates
+
+
+
+                #endregion
+
+                #region General Electrical Setup
+
+
+                #endregion
+
+                #region First Floor Electrical Updates
+
+
+                #endregion
+
+                #region Second Floor Electrical Updates
+
+
+                #endregion
 
 
                 // commit the transaction group
@@ -108,7 +163,17 @@ namespace ConvertSpecLevel
             return Result.Succeeded;
         }
 
-       
+        private void UpdateRearDoor(Document curDoc, string selectedSpecLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void UpdateFrontDoor(Document curDoc, string selectedSpecLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+
 
         #region Finish Floor Methods
 
@@ -219,7 +284,7 @@ namespace ConvertSpecLevel
                 // add floor material breaks
                 AddFloorMaterialBreaks(curDoc);
             }
-        }        
+        }
 
         private void RemoveFloorMaterialBreaks(Document curDoc)
         {
@@ -227,7 +292,7 @@ namespace ConvertSpecLevel
             List<FamilyInstance> allDoorsInView = Utils.GetAllDoorsInActiveView(curDoc);
 
             // loop through each door
-            foreach(FamilyInstance curDoor in allDoorsInView)
+            foreach (FamilyInstance curDoor in allDoorsInView)
             {
                 // get ToRoom & FromRoom values
                 Room toRoom = curDoor.ToRoom;
@@ -272,7 +337,7 @@ namespace ConvertSpecLevel
                         {
                             continue;
                         }
-                        
+
                         // calculate the distance between doorPoint & breakPoint
                         double distance = doorPoint.DistanceTo(breakPoint);
 
@@ -432,7 +497,7 @@ namespace ConvertSpecLevel
                             string toRmFinish = toRoom.LookupParameter("Floor Finish").AsString();
                             newBreak.LookupParameter("Floor 2").Set(toRmFinish);
                         }
-                    }                    
+                    }
                 }
             }
         }

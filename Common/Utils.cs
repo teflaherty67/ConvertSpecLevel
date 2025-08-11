@@ -376,7 +376,12 @@ namespace ConvertSpecLevel.Common
             }
         }
 
-       
+        internal static View GetScheduleByNameContains(Document curDoc, string v)
+        {
+            throw new NotImplementedException();
+        }
+
+
 
 
         #endregion
