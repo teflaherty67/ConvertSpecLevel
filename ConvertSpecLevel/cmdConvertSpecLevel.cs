@@ -841,7 +841,7 @@ namespace ConvertSpecLevel
             // loop through the wall cabinet instances
             foreach (FamilyInstance curCabinet in m_allWallCabs)
             {
-                if (curCabinet.Symbol.Family.Name.Contains("Single Door"))
+                if (curCabinet.Symbol.Family.Name.Contains("Single Door") || curCabinet.Symbol.Family.Name.Contains("1-Dr"))
                 {
                     // create string variable for new cabinet family name
                     string newCabinetFamilyName = "LD_CW_Wall_1-Dr_Flush";
@@ -873,7 +873,7 @@ namespace ConvertSpecLevel
                     // replace the cabinet type
                     curCabinet.Symbol = newCabinetType;
                 }
-                else
+                else if (curCabinet.Symbol.Family.Name.Contains("Double Door") || curCabinet.Symbol.Family.Name.Contains("2-Dr"))
                 {
                     // create string variable for new cabinet family name
                     string newCabinetFamilyName = "LD_CW_Wall_2-Dr_Flush";
@@ -915,9 +915,9 @@ namespace ConvertSpecLevel
                 .OfCategory(BuiltInCategory.OST_Casework)
                 .OfClass(typeof(FamilyInstance))
                 .Cast<FamilyInstance>()
-                .Where(cab => cab.Symbol.Family.Name.Contains("Upper") &&
-                              (cab.Symbol.Family.Name.Contains("Single") || cab.Symbol.Family.Name.Contains("Double")) &&
-                              cab.Symbol.Name.Split('x').Length == 2)
+                .Where(cab => (cab.Symbol.Family.Name.Contains("Upper") ||
+                 cab.Symbol.Family.Name.Contains("Wall")) &&
+                 cab.Symbol.Name.Split('x').Length == 2)
                 .ToList();
         }
 
