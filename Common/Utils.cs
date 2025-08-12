@@ -264,6 +264,42 @@ namespace ConvertSpecLevel.Common
 
         #endregion
 
+        #region Sheets
+
+        internal static ViewSheet GetSheetByName(Document curDoc, string sheetName)
+        {
+            //get all sheets
+            List<ViewSheet> curSheets = GetAllSheets(curDoc);
+
+            //loop through sheets and check sheet name
+            foreach (ViewSheet curSheet in curSheets)
+            {
+                if (curSheet.Name == sheetName)
+                {
+                    return curSheet;
+                }
+            }
+
+            return null;
+        }
+
+        internal static List<ViewSheet> GetAllSheets(Document curDoc)
+        {
+            //get all sheets
+            FilteredElementCollector m_colViews = new FilteredElementCollector(curDoc);
+            m_colViews.OfCategory(BuiltInCategory.OST_Sheets);
+
+            List<ViewSheet> m_sheets = new List<ViewSheet>();
+            foreach (ViewSheet x in m_colViews.ToElements())
+            {
+                m_sheets.Add(x);
+            }
+
+            return m_sheets;
+        }
+
+        #endregion      
+
         #region Task Dialog
 
         /// <summary>
@@ -354,6 +390,27 @@ namespace ConvertSpecLevel.Common
 
             // Display the dialog and capture the result (though we don't use it for warnings)
             TaskDialogResult m_DialogResult = m_Dialog.Show();
+        }
+
+        #endregion
+
+        #region Text Notes
+
+        public static List<TextNoteType> GetAllTextNoteTypes(Document curDoc)
+        {
+            List<TextNoteType> returnList = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(TextNoteType))
+                .Cast<TextNoteType>()
+                .ToList();
+
+            return returnList;
+        }
+
+        public static TextNoteType GetTextNoteTypeByName(Document curDoc, string name)
+        {
+            List<TextNoteType> textNoteList = GetAllTextNoteTypes(curDoc).ToList();
+
+            return textNoteList.FirstOrDefault(curStyle => curStyle.Name == name);
         }
 
         #endregion

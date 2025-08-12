@@ -1,4 +1,5 @@
 ﻿using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Structure;
 using ConvertSpecLevel.Classes;
 using ConvertSpecLevel.Common;
 
@@ -133,6 +134,64 @@ namespace ConvertSpecLevel
                 #endregion
 
                 #region Cabinet Updates
+
+                // get the Interior Elevations sheet & set it as the active view
+                ViewSheet sheetIntr = Utils.GetSheetByName(curDoc, "Interior Elevations");
+
+                if (sheetIntr != null)
+                {
+                    uidoc.ActiveView = sheetIntr;
+                }
+                else
+                {
+                    // if not found alert the user
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
+                }
+
+                // create transaction for cabinet updates
+                using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
+                {
+                    // start the third transaction
+                    t.Start();
+
+                    // revise the upper cabinets
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        // lower the upper cabinets to 36"
+                        ReplaceWallCabinets(curDoc, "36");
+                    }
+                    else
+                    {
+                        // raise the upper cabinets to 42"
+                        ReplaceWallCabinets(curDoc, "42");
+                    }
+
+                    // revise the MW cabinet
+                    ReplaceMWCabinet(curDoc, selectedMWCabHeight);
+
+                    //// add/remove the Ref Sp cabinet
+                    //if (selectedSpecLevel == "Complete Home" && selectedCabinet != null)
+                    //{
+                    //    curDoc.Delete(((Element)selectedCabinet).Id);
+                    //}
+                    //else
+                    //{
+                    //    AddRefSpCabinet(curDoc, uidoc, selectedRefSpWall, selectedRefSp);
+                    //}
+
+                    // raise/lower the backsplash height
+                    UpdateBacksplashHeight(curDoc, selectedSpecLevel);
+
+                    UpdateBacksplashNote(curDoc, uidoc, selectedSpecLevel);
+
+                    // notify the user
+                    // upper cabinets were revised per the selected spec level
+                    // Ref Sp cabinet was added/removed per the selected spec level
+                    // backsplash height was raised/lowered per the selected spec level
+
+                    // commit the transaction
+                    t.Commit();
+                }
 
 
 
@@ -765,6 +824,375 @@ namespace ConvertSpecLevel
         }
 
         #endregion
+
+        #endregion
+
+        #region Cabinet Methods
+
+        private void ReplaceWallCabinets(Document curDoc, string cabHeight)
+        {
+            // load the new cabinet families
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_1-Dr_Flush");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
+
+            // get all wall cabinets in the document
+            List<FamilyInstance> m_allWallCabs = GetAllStandardWallCabinets(curDoc);
+
+            // loop through the wall cabinet instances
+            foreach (FamilyInstance curCabinet in m_allWallCabs)
+            {
+                if (curCabinet.Symbol.Family.Name.Contains("Single"))
+                {
+                    // create string variable for new cabinet family name
+                    string newCabinetFamilyName = "LD_CW_Wall_1-Dr_Flush";
+
+                    // get the current cabinet type name
+                    string curCabinetTypeName = curCabinet.Symbol.Name;
+
+                    // get the new cabinet type based on the spec level height
+                    string[] curDimensions = curCabinetTypeName.Split('x');
+                    string curWidth = curDimensions[0].Trim();
+                    string newCabinetTypeName = curWidth + "x" + cabHeight + "\"";
+
+                    // add single door cabinet replacement logic
+                    FamilySymbol newCabinetType = Utils.GetFamilySymbolByName(curDoc, newCabinetFamilyName, newCabinetTypeName);
+
+                    // null check for the new cabinet type
+                    if (newCabinetType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Cabinet type '{newCabinetTypeName}' not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new cabinet type is active
+                    if (!newCabinetType.IsActive)
+                    {
+                        newCabinetType.Activate();
+                    }
+
+                    // replace the cabinet type
+                    curCabinet.Symbol = newCabinetType;
+                }
+                else
+                {
+                    // create string variable for new cabinet family name
+                    string newCabinetFamilyName = "LD_CW_Wall_2-Dr_Flush";
+
+                    // get the current cabinet type name
+                    string curCabinetTypeName = curCabinet.Symbol.Name;
+
+                    // get the new cabinet type based on the spec level height
+                    string[] curDimensions = curCabinetTypeName.Split('x');
+                    string curWidth = curDimensions[0].Trim();
+                    string newCabinetTypeName = curWidth + "x" + cabHeight + "\"";
+
+                    // add double door cabinet replacement logic
+                    FamilySymbol newCabinetType = Utils.GetFamilySymbolByName(curDoc, newCabinetFamilyName, newCabinetTypeName);
+
+                    // null check for the new cabinet type
+                    if (newCabinetType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Cabinet type '{newCabinetTypeName}' not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new cabinet type is active
+                    if (!newCabinetType.IsActive)
+                    {
+                        newCabinetType.Activate();
+                    }
+
+                    // replace the cabinet type
+                    curCabinet.Symbol = newCabinetType;
+                }
+            }
+        }
+
+        private List<FamilyInstance> GetAllStandardWallCabinets(Document curDoc)
+        {
+            // get all wall cabinets in the document
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Casework)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(cab => cab.Symbol.Family.Name.Contains("Wall") &&
+                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")) &&
+                              cab.Symbol.Name.Split('x').Length == 2)
+                .ToList();
+        }
+
+        private void ReplaceMWCabinet(Document curDoc, string selectedMWCabHeight)
+        {
+            // get all wall cabinets with non-standard depth in the document
+            List<FamilyInstance> m_allMWCabs = GetAllNonStandardWallCabinets(curDoc);
+
+            // declare variables
+            FamilyInstance curMWCab = null;
+            string curWidth = "";
+            string curDepth = "";
+
+            // loop through the list and find the one being used for the MW cabinet (30" wide x 15" deep)
+            foreach (FamilyInstance curCab in m_allMWCabs)
+            {
+                // parse the type name
+                curWidth = curCab.Symbol.Name.Split('x')[0];
+                curDepth = curCab.Symbol.Name.Split("x")[2];
+
+                if (curWidth == "30\"" && curDepth == "15\"")
+                {
+                    curMWCab = curCab;
+                    break;
+                }
+                else
+                    continue;
+            }
+
+            // null check for cabinet found
+            if (curMWCab == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "No MW cabinet found in the project.");
+                return;
+            }
+
+            // get the current cabinet type name
+            string curMWCabName = curMWCab.Symbol.Name;
+
+            // create a string variable for the new cabinet type name
+            string newMWCabTypeName = $"{curWidth}x{selectedMWCabHeight}x{curDepth}\"";
+
+            // create the new cabinet type name based on the selected height
+            FamilySymbol newMWCab = Utils.GetFamilySymbolByName(curDoc, "LD_CW_Wall_2-Dr_Flush", newMWCabTypeName);
+
+            // null check for the new cabinet type
+            if (newMWCab == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", $"Cabinet type '{newMWCabTypeName}' not found in the project after loading family.");
+                return;
+            }
+
+            // check if the new cabinet type is active
+            if (!newMWCab.IsActive)
+            {
+                newMWCab.Activate();
+            }
+
+            // replace the cabinet type
+            curMWCab.Symbol = newMWCab;
+
+            // create variable for the new MW cabinet family name
+            string newMWCabFamilyName = curMWCab.Symbol.Family.Name;
+
+            // notify the user that the MW cabinet was updated
+            Utils.TaskDialogInformation("Complete", "Spec Conversion",
+                $"The MW cabinet was updated to {newMWCabFamilyName}:{newMWCabTypeName} per the selected height.");
+        }
+
+        private List<FamilyInstance> GetAllNonStandardWallCabinets(Document curDoc)
+        {
+            // get all wall cabinets in the document
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Casework)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(cab => cab.Symbol.Family.Name.Contains("Wall") &&
+                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")) &&
+                              cab.Symbol.Name.Split('x').Length == 3)
+                .ToList();
+        }       
+
+        private void UpdateBacksplashHeight(Document curDoc, string selectedSpecLevel)
+        {
+            // load the new counter & backsplash families
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Counter_Top-Mount");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Backsplash");
+
+            // get all generic model instances in the document
+            List<FamilyInstance> m_allGenericModels = Utils.GetAllGenericFamilies(curDoc);
+
+            // filter the list for counter tops and backsplashes
+            List<FamilyInstance> listBacksplashGMs = m_allGenericModels
+                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Name.Contains("Kitchen Backsplash"))
+                .ToList();
+
+            // null check for the list
+            if (listBacksplashGMs == null || !listBacksplashGMs.Any())
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "No Kitchen Counter or Backsplash generic models found in the project.");
+                return;
+            }
+
+            // loop through the list and update the height based on the spec level
+            foreach (FamilyInstance curGM in listBacksplashGMs)
+            {
+                // get the current type name
+                string curTypeName = curGM.Symbol.Name;
+
+                // replace the famile instance based on the current name
+                if (curTypeName.Contains("Kitchen Counter"))
+                {
+                    // get the new counter type
+                    FamilySymbol newCounterType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Counter_Top-Mount", "Type 1");
+
+                    // null check for the new counter type
+                    if (newCounterType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Counter type not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new counter type is active
+                    if (!newCounterType.IsActive)
+                    {
+                        newCounterType.Activate();
+                    }
+
+                    // replace the family instance
+                    curGM.Symbol = newCounterType;
+
+                    // set the height based on the spec level
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        // set the height to 4"
+                        curGM.Symbol.LookupParameter("Backsplash Height").Set(4.0 / 12.0);
+                    }
+                    else
+                    {
+                        // set the height to 18"
+                        curGM.Symbol.LookupParameter("Backsplash Height").Set(18.0 / 12.0);
+                    }
+                }
+                else if (curTypeName.Contains("Kitchen Backsplash"))
+                {
+                    // get the new backsplash type
+                    FamilySymbol newBacksplashType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Backsplash", "Type 1");
+
+                    // null check for the new backsplash type
+                    if (newBacksplashType == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Backsplash type not found in the project after loading family.");
+                        continue;
+                    }
+
+                    // check if the new backsplash type is active
+                    if (!newBacksplashType.IsActive)
+                    {
+                        newBacksplashType.Activate();
+                    }
+
+                    // replace the family instance
+                    curGM.Symbol = newBacksplashType;
+
+                    // set the height based on the spec level
+                    if (selectedSpecLevel == "Complete Home")
+                    {
+                        // set the height to 4"
+                        curGM.Symbol.LookupParameter("Height").Set(4.0 / 12.0);
+                    }
+                    else
+                    {
+                        // set the height to 18"
+                        curGM.Symbol.LookupParameter("Height").Set(18.0 / 12.0);
+                    }
+                }
+            }
+        }
+
+        private void UpdateBacksplashNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel)
+        {
+            // get the selected spec level
+            if (selectedSpecLevel == "Complete Home")
+            {
+                // get all text notes & filter for backsplash note
+                List<TextNote> backsplashNotes = new FilteredElementCollector(curDoc)
+                    .OfClass(typeof(TextNote))
+                    .Cast<TextNote>()
+                    .Where(note => note.Text.Contains("Full Tile Backsplash"))
+                    .ToList();
+
+                // check if any backsplash notes were found
+                if (backsplashNotes == null || !backsplashNotes.Any())
+                {
+                    // continue if no backsplash notes found
+                    return;
+                }
+
+                // loop through and delete each note
+                foreach (TextNote curNote in backsplashNotes)
+                {
+                    curDoc.Delete(curNote.Id);
+                }
+            }
+            else if (selectedSpecLevel == "Complete Home Plus")
+            {
+                // get the TextNoteType
+                TextNoteType backsplashNoteType = Utils.GetTextNoteTypeByName(curDoc, "STANDARD");
+
+                // null check for the TextNoteType
+                if (backsplashNoteType == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Text Note Type 'STANDARD' not found in the project.");
+                    return;
+                }
+
+                // get all the interior elevation views
+                List<ViewSection> allIntElevs = GetAllIntElevViews(curDoc);
+
+                // check if any interior elevation views were found
+                if (allIntElevs == null || !allIntElevs.Any())
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevation views found in the project.");
+                    return;
+                }
+
+                // loop through each interior elevation views & add the backsplash note
+                foreach (ViewSection curIntElev in allIntElevs)
+                {
+                    // set the active view
+                    uidoc.ActiveView = curIntElev;
+
+                    // set the text note location
+
+                    // get the view boundaries
+                    BoundingBoxXYZ curViewBounds = curIntElev.get_BoundingBox(curIntElev);
+
+                    // calculate center point, 1' below bottom of bounding box
+                    XYZ centerPoint = new XYZ(
+                        (curViewBounds.Min.X + curViewBounds.Max.X) / 2, // horizontal center
+                        curViewBounds.Min.Y - 1.0, // 1' below the bottom of the bounding box
+                        0); // Z = 0 for view plane
+
+                    try
+                    {
+                        // create a new text note
+                        TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, centerPoint, "Full Tile Backsplash", backsplashNoteType.Id);
+
+                        // set text note properties
+                        backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
+                        backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+
+                        // add leader lines
+                        Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
+                        Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"Error creating backsplash note in view {curIntElev.Name}: {ex.Message}");
+                        continue;
+                    }
+                }
+            }
+        }
+
+        private List<ViewSection> GetAllIntElevViews(Document curDoc)
+        {
+            // get all the ViewSection views and filter for Interior Elevaitons named Kitchen
+            List<ViewSection> m_allIntElevs = Utils.GetAllSectionViews(curDoc)
+                .OfType<ViewSection>()
+                .Where(view => view.Name.Contains("Kitchen") && view.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.AsString() == "Kitchen")
+                .ToList();
+
+            return m_allIntElevs;
+        }
 
         #endregion
 
