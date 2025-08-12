@@ -841,7 +841,7 @@ namespace ConvertSpecLevel
             // loop through the wall cabinet instances
             foreach (FamilyInstance curCabinet in m_allWallCabs)
             {
-                if (curCabinet.Symbol.Family.Name.Contains("Single"))
+                if (curCabinet.Symbol.Family.Name.Contains("Single Door"))
                 {
                     // create string variable for new cabinet family name
                     string newCabinetFamilyName = "LD_CW_Wall_1-Dr_Flush";
@@ -915,8 +915,8 @@ namespace ConvertSpecLevel
                 .OfCategory(BuiltInCategory.OST_Casework)
                 .OfClass(typeof(FamilyInstance))
                 .Cast<FamilyInstance>()
-                .Where(cab => cab.Symbol.Family.Name.Contains("Wall") &&
-                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")) &&
+                .Where(cab => cab.Symbol.Family.Name.Contains("Upper") &&
+                              (cab.Symbol.Family.Name.Contains("Single") || cab.Symbol.Family.Name.Contains("Double")) &&
                               cab.Symbol.Name.Split('x').Length == 2)
                 .ToList();
         }
@@ -1147,8 +1147,8 @@ namespace ConvertSpecLevel
                 // loop through each interior elevation views & add the backsplash note
                 foreach (ViewSection curIntElev in allIntElevs)
                 {
-                    // set the active view
-                    uidoc.ActiveView = curIntElev;
+                    //// set the active view
+                    //uidoc.ActiveView = curIntElev;
 
                     // set the text note location
 
