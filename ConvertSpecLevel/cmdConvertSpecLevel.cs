@@ -1028,7 +1028,7 @@ namespace ConvertSpecLevel
                 string curTypeName = curGM.Symbol.Name;
 
                 // replace the famile instance based on the current name
-                if (curTypeName.Contains("Kitchen Counter"))
+                if (curGM.Symbol.Family.Name.Contains("Kitchen Counter"))
                 {
                     // get the new counter type
                     FamilySymbol newCounterType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Counter_Top-Mount", "Type 1");
@@ -1049,16 +1049,23 @@ namespace ConvertSpecLevel
                     // replace the family instance
                     curGM.Symbol = newCounterType;
 
-                    // set the height based on the spec level
-                    if (selectedSpecLevel == "Complete Home")
+                    // check the value of the Backsplash Back parameter
+                    Parameter paramBacksplashBack = curGM.LookupParameter("Backsplash Back");
+
+                    // if Backsplash Back is not null and is equal to Yes
+                    if (paramBacksplashBack != null && paramBacksplashBack.AsInteger() == 1) // 1 = yes/true
                     {
-                        // set the height to 4"
-                        curGM.Symbol.LookupParameter("Backsplash Height").Set(4.0 / 12.0);
-                    }
-                    else
-                    {
-                        // set the height to 18"
-                        curGM.Symbol.LookupParameter("Backsplash Height").Set(18.0 / 12.0);
+                        // then set the height based on the spec level
+                        if (selectedSpecLevel == "Complete Home")
+                        {
+                            // set the height to 4"
+                            curGM.LookupParameter("Backsplash Height").Set(4.0 / 12.0);
+                        }
+                        else
+                        {
+                            // set the height to 18"
+                            curGM.LookupParameter("Backsplash Height").Set(18.0 / 12.0);
+                        }
                     }
                 }
                 else if (curTypeName.Contains("Kitchen Backsplash"))
