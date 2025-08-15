@@ -1009,9 +1009,11 @@ namespace ConvertSpecLevel
             // get all generic model instances in the document
             List<FamilyInstance> m_allGenericModels = Utils.GetAllGenericFamilies(curDoc);
 
+            var allFamilyNames = m_allGenericModels.Select(gm => gm.Symbol.Family.Name).ToList();
+
             // filter the list for counter tops and backsplashes
             List<FamilyInstance> listBacksplashGMs = m_allGenericModels
-                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Name.Contains("Kitchen Backsplash"))
+                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Family.Name.Contains("Kitchen Backsplash"))
                 .ToList();
 
             // null check for the list
