@@ -1013,8 +1013,8 @@ namespace ConvertSpecLevel
 
             // filter the list for counter tops and backsplashes
             List<FamilyInstance> listBacksplashGMs = m_allGenericModels
-                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Family.Name.Contains("Kitchen Backsplash"))
-                .ToList();
+                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Family.Name.Contains("Kitchen_Counter"))
+                .ToList();           
 
             // null check for the list
             if (listBacksplashGMs == null || !listBacksplashGMs.Any())
@@ -1070,37 +1070,25 @@ namespace ConvertSpecLevel
                         }
                     }
                 }
-                else if (curTypeName.Contains("Kitchen Backsplash"))
+                else if (curGM.Symbol.Family.Name.Contains("Kitchen_Counter"))
                 {
-                    // get the new backsplash type
-                    FamilySymbol newBacksplashType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Backsplash", "Type 1");
+                    // check the value of the Backsplash Back parameter
+                    Parameter paramBacksplashBack = curGM.LookupParameter("Backsplash Back");
 
-                    // null check for the new backsplash type
-                    if (newBacksplashType == null)
+                    // if Backsplash Back is not null and is equal to Yes
+                    if (paramBacksplashBack != null && paramBacksplashBack.AsInteger() == 1) // 1 = yes/true
                     {
-                        Utils.TaskDialogError("Error", "Spec Conversion", $"Backsplash type not found in the project after loading family.");
-                        continue;
-                    }
-
-                    // check if the new backsplash type is active
-                    if (!newBacksplashType.IsActive)
-                    {
-                        newBacksplashType.Activate();
-                    }
-
-                    // replace the family instance
-                    curGM.Symbol = newBacksplashType;
-
-                    // set the height based on the spec level
-                    if (selectedSpecLevel == "Complete Home")
-                    {
-                        // set the height to 4"
-                        curGM.Symbol.LookupParameter("Height").Set(4.0 / 12.0);
-                    }
-                    else
-                    {
-                        // set the height to 18"
-                        curGM.Symbol.LookupParameter("Height").Set(18.0 / 12.0);
+                        // then set the height based on the spec level
+                        if (selectedSpecLevel == "Complete Home")
+                        {
+                            // set the height to 4"
+                            curGM.LookupParameter("Backsplash Height").Set(4.0 / 12.0);
+                        }
+                        else
+                        {
+                            // set the height to 18"
+                            curGM.LookupParameter("Backsplash Height").Set(18.0 / 12.0);
+                        }
                     }
                 }
             }
