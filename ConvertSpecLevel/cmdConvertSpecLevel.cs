@@ -86,13 +86,13 @@ namespace ConvertSpecLevel
                     else
                     {
                         listRooms = string.Join(", ", listUpdatedRooms.Take(listUpdatedRooms.Count - 1)) + $", and {listUpdatedRooms.Last()}";
-                    }
-
-                    // notify the user
-                    Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
+                    }                   
 
                     // commit the transaction
                     t.Commit();
+
+                    // notify the user
+                    Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
                 }
 
                 #endregion
@@ -122,14 +122,14 @@ namespace ConvertSpecLevel
                     UpdateFrontDoor(curDoc, selectedSpecLevel);
 
                     // update rear door type
-                    UpdateRearDoor(curDoc, selectedSpecLevel);
-
-                    // notify the user
-                    Utils.TaskDialogInformation("Information", "Spec Conversion", "The front and rear doors were replaced per the specified spec level.");
+                    UpdateRearDoor(curDoc, selectedSpecLevel);                    
                   
                     // commit the transaction
                     t.Commit();
                 }
+
+                // notify the user
+                Utils.TaskDialogInformation("Information", "Spec Conversion", "The front and rear doors were replaced per the specified spec level.");
 
                 #endregion
 
