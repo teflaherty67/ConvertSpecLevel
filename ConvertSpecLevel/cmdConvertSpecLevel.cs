@@ -1,4 +1,5 @@
-﻿using Autodesk.Revit.DB.Architecture;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
 using ConvertSpecLevel.Classes;
 using ConvertSpecLevel.Common;
@@ -1029,9 +1030,12 @@ namespace ConvertSpecLevel
                 // get the current type name
                 string curTypeName = curGM.Symbol.Name;
 
-                // replace the famile instance based on the current name
+                // replace the family instance based on the current name
                 if (curGM.Symbol.Family.Name.Contains("Kitchen Counter"))
                 {
+                    // store existing patrameter values
+                    clsCountertopParams storedParams = new clsCountertopParams(curGM);
+
                     // get the new counter type
                     FamilySymbol newCounterType = Utils.GetFamilySymbolByName(curDoc, "LD_GM_Kitchen_Counter_Top-Mount", "Type 1");
 
@@ -1051,23 +1055,16 @@ namespace ConvertSpecLevel
                     // replace the family instance
                     curGM.Symbol = newCounterType;
 
+                    // restore parameter values
+                    storedParams.RestoreToElement(curGM);
+
                     // check the value of the Backsplash Back parameter
                     Parameter paramBacksplashBack = curGM.LookupParameter("Backsplash Back");
 
                     // if Backsplash Back is not null and is equal to Yes
                     if (paramBacksplashBack != null && paramBacksplashBack.AsInteger() == 1) // 1 = yes/true
                     {
-                        // then set the height based on the spec level
-                        if (selectedSpecLevel == "Complete Home")
-                        {
-                            // set the height to 4"
-                            curGM.LookupParameter("Backsplash Height").Set(4.0 / 12.0);
-                        }
-                        else
-                        {
-                            // set the height to 18"
-                            curGM.LookupParameter("Backsplash Height").Set(18.0 / 12.0);
-                        }
+                        SetBacksplashHeight(curGM, selectedSpecLevel, "Backsplash Height");
                     }
                 }
                 else if (curGM.Symbol.Family.Name.Contains("Kitchen_Counter"))
@@ -1078,19 +1075,24 @@ namespace ConvertSpecLevel
                     // if Backsplash Back is not null and is equal to Yes
                     if (paramBacksplashBack != null && paramBacksplashBack.AsInteger() == 1) // 1 = yes/true
                     {
-                        // then set the height based on the spec level
-                        if (selectedSpecLevel == "Complete Home")
-                        {
-                            // set the height to 4"
-                            curGM.LookupParameter("Backsplash Height").Set(4.0 / 12.0);
-                        }
-                        else
-                        {
-                            // set the height to 18"
-                            curGM.LookupParameter("Backsplash Height").Set(18.0 / 12.0);
-                        }
+                        SetBacksplashHeight(curGM, selectedSpecLevel, "Backsplash Height");
                     }
                 }
+            }
+        }
+
+        private void SetBacksplashHeight(FamilyInstance curGM, string selectedSpecLevel, string paramName)
+        {
+            // then set the height based on the spec level
+            if (selectedSpecLevel == "Complete Home")
+            {
+                // set the height to 4"
+                curGM.LookupParameter(paramName).Set(4.0 / 12.0);
+            }
+            else
+            {
+                // set the height to 18"
+                curGM.LookupParameter(paramName).Set(18.0 / 12.0);
             }
         }
 
