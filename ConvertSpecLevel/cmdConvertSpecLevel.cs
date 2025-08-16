@@ -255,6 +255,36 @@ namespace ConvertSpecLevel
 
                 #region Second Floor Electrical Updates
 
+                // get all views with Electrical in the name & associated with the Second Floor
+                List<View> secondFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "Second Floor");
+
+                // get the first view in the list and set it as the active view
+                if (secondFloorElecViews.Any())
+                {
+                    uidoc.ActiveView = secondFloorElecViews.First();
+                }
+                else
+                {
+                    // if not found alert the user
+                    Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for Second Floor");
+                }
+
+                // create transaction for Second Floor Electrical updates
+                using (Transaction t = new Transaction(curDoc, "Update Second Floor Electrical"))
+                {
+
+                    // start the transaction
+                    t.Start();
+
+                    // replace the light fixtures in the specified rooms per the selected spec level
+                    UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
+
+                    // add/remove the ceiling fan note in the views
+                    ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, secondFloorElecViews);
+
+                    // commit the transaction
+                    t.Commit();
+                }
 
                 #endregion
 
