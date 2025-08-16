@@ -1457,8 +1457,13 @@ namespace ConvertSpecLevel
         /// <summary>
         /// Manages ceiling fan notes in specified rooms based on spec level conversion
         /// </summary>        
-        public static void ManageClgFanNotes(Document curDoc, UIDocument uidoc, string specLevel, List<View> firstFloorElecViews)
+        public static (int totalAdded, int totalDeleted, int viewCount) ManageClgFanNotes(Document curDoc, UIDocument uidoc, string specLevel, List<View> viewsElectrical)
         {
+            // define the variables
+            int totalAdded = 0;
+            int totalDeleted = 0;
+            int viewCount = viewsElectrical.Count;
+
             // Define rooms that need note management
             List<string> roomsToUpdate = new List<string>
             {
@@ -1471,29 +1476,35 @@ namespace ConvertSpecLevel
             string noteText = "Block & pre-wire for clg fan";
 
             // loop through each view to ensure notes are added/removed in all relevant views
-            foreach (View curView in firstFloorElecViews)
+            foreach (View curView in viewsElectrical)
             {
-                // Set the active view
-                uidoc.ActiveView = curView;
-
                 if (specLevel == "Complete Home Plus")
                 {
                     // CHP to CH conversion - DELETE notes in all rooms
-                    DeleteCeilingFanNotes(curDoc, roomsToUpdate, noteText);
+                    int deletedCount = DeleteCeilingFanNotes(curDoc, curView.Id, roomsToUpdate, noteText);
+
+                    // increment the counter
+                    totalDeleted += deletedCount;
                 }
                 else if (specLevel == "Complete Home")
                 {
                     // CH to CHP conversion - ADD notes in all rooms EXCEPT Covered Patio
                     List<string> roomsForNotes = roomsToUpdate.Where(r => r != "Covered Patio").ToList();
-                    AddCeilingFanNotes(curDoc, roomsForNotes, noteText);
+                    int addedCount = AddCeilingFanNotes(curDoc, curView.Id, roomsForNotes, noteText);
+
+                    // increment the counter
+                    totalAdded += addedCount;
                 }
             }
+
+            // return the counts
+            return (totalAdded, totalDeleted, viewCount);
         }
 
         /// <summary>
         /// Deletes ceiling fan notes from specified rooms
         /// </summary>       
-        private static void DeleteCeilingFanNotes(Document curDoc, List<string> roomNames, string noteText)
+        private static int DeleteCeilingFanNotes(Document curDoc, ElementId curViewId, List<string> roomNames, string noteText)
         {
             int deletedCount = 0;
 
@@ -1505,7 +1516,7 @@ namespace ConvertSpecLevel
                 foreach (Room room in rooms)
                 {
                     // Find text notes in this room
-                    List<TextNote> notesToDelete = GetTextNotesInRoom(curDoc, room, noteText);
+                    List<TextNote> notesToDelete = GetTextNotesInRoom(curDoc, curViewId, room, noteText);
 
                     // Delete each matching note
                     foreach (TextNote note in notesToDelete)
@@ -1516,16 +1527,14 @@ namespace ConvertSpecLevel
                 }
             }
 
-            if (deletedCount > 0)
-            {
-                TaskDialog.Show("Notes Deleted", $"Deleted {deletedCount} ceiling fan notes.");
-            }
+            // return the count
+            return deletedCount;
         }
 
         /// <summary>
         /// Adds ceiling fan notes to specified rooms
         /// </summary>       
-        private static void AddCeilingFanNotes(Document curDoc, List<string> roomNames, string noteText)
+        private static int AddCeilingFanNotes(Document curDoc, ElementId curViewId, List<string> roomNames, string noteText)
         {
             int addedCount = 0;
 
@@ -1536,7 +1545,7 @@ namespace ConvertSpecLevel
             if (textNoteType == null)
             {
                 Utils.TaskDialogError("Error", "Spec Conversion", "Text Note Type 'STANDARD' not found in the project.");
-                return;
+                return 0;
             }
 
             foreach (string roomName in roomNames)
@@ -1551,7 +1560,7 @@ namespace ConvertSpecLevel
                 foreach (Room curRoom in rooms)
                 {
                     // Check if note already exists
-                    List<TextNote> existingNotes = GetTextNotesInRoom(curDoc, curRoom, noteText);
+                    List<TextNote> existingNotes = GetTextNotesInRoom(curDoc, curViewId, curRoom, noteText);
                     if (existingNotes.Count > 0)
                         continue; // Note already exists, skip
 
@@ -1563,28 +1572,26 @@ namespace ConvertSpecLevel
                         XYZ notePosition = new XYZ(roomCenter.X, roomCenter.Y - 2.0, roomCenter.Z);
 
                         // Create the text note
-                        TextNote.Create(curDoc, curDoc.ActiveView.Id, notePosition, noteText, textNoteType.Id);
+                        TextNote.Create(curDoc, curViewId, notePosition, noteText, textNoteType.Id);
                         addedCount++;
                     }
                 }
             }
 
-            if (addedCount > 0)
-            {
-                TaskDialog.Show("Notes Added", $"Added {addedCount} ceiling fan notes.");
-            }
+            // return the count
+            return addedCount;
         }
 
         /// <summary>
         /// Gets text notes in a specific room that contain the specified text
         /// </summary>        
         /// <returns>List of matching text notes</returns>
-        private static List<TextNote> GetTextNotesInRoom(Document curDoc, Room room, string searchText)
+        private static List<TextNote> GetTextNotesInRoom(Document curDoc, ElementId curViewId, Room room, string searchText)
         {
             List<TextNote> m_textNotes = new List<TextNote>();
 
             // Get all text notes in the document
-            var textNotes = new FilteredElementCollector(curDoc)
+            var textNotes = new FilteredElementCollector(curDoc, curViewId)
                 .OfClass(typeof(TextNote))
                 .Cast<TextNote>();
 
