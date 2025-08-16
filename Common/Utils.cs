@@ -573,8 +573,12 @@ namespace ConvertSpecLevel.Common
                         // check if the level name matches the specified level name
                         if (levelNameFromParam.Equals(levelName, StringComparison.OrdinalIgnoreCase))
                         {
-                            // add the view to the return list
-                            m_returnList.Add(curView);
+                            // filter out dependent views
+                            if (curView.GetPrimaryViewId() == ElementId.InvalidElementId)
+                            {
+                                // add the view to the return list
+                                m_returnList.Add(curView);
+                            }
                         }
                     }
                 }

@@ -217,7 +217,7 @@ namespace ConvertSpecLevel
 
                 // get all views with Electrical in the name & associated with the First Floor
                 List<View> firstFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor");
-
+              
                 // get the first view in the list and set it as the active view
                 if (firstFloorElecViews.Any())
                 {
@@ -235,8 +235,8 @@ namespace ConvertSpecLevel
                         //// add/remove the sprinkler outlet in the Garage
                         //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
 
-                        //// add/remove the ceiling fan note in the views
-                        //ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+                        // add/remove the ceiling fan note in the views
+                        ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         //// add/remove sprinkler outlet note
                         //RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
