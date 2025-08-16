@@ -1,4 +1,6 @@
 ﻿
+using Autodesk.Revit.DB.Architecture;
+
 namespace ConvertSpecLevel.Common
 {
     internal static class Utils
@@ -195,6 +197,78 @@ namespace ConvertSpecLevel.Common
             }
 
             return null;
+        }
+
+        #endregion
+
+        #region Rooms
+
+        /// <summary>
+        /// Retrieves all rooms from the document whose names contain the specified string,
+        /// and filters out rooms with zero or invalid area.
+        /// </summary>        
+        internal static List<Room> GetRoomByNameContains(Document curDoc, string nameRoom)
+        {
+            // Retrieve all rooms in the document
+            List<Room> m_roomList = GetAllRooms(curDoc);
+
+            // Initialize the list to hold the matching rooms
+            List<Room> m_returnList = new List<Room>();
+
+            // Iterate through all rooms
+            foreach (Room curRoom in m_roomList)
+            {
+                // Check if the room name contains the specified substring
+                if (curRoom != null &&
+                curRoom.Name != null &&
+                curRoom.Name.IndexOf(nameRoom, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // Check if the room has a valid area (greater than 0)
+                    if (curRoom.Area > 0)
+                    {
+                        // Add the room to the result list
+                        m_returnList.Add(curRoom);
+                    }
+                }
+            }
+
+            // Return the filtered list of rooms
+            return m_returnList;
+        }
+
+
+        /// <summary>
+        /// Retrieves all <see cref="Room"/> elements from the specified Revit document.
+        /// </summary>        
+        public static List<Room> GetAllRooms(Document curDoc)
+        {
+            return new FilteredElementCollector(curDoc)         // Initialize a collector for the given document
+                .OfCategory(BuiltInCategory.OST_Rooms)           // Filter elements to include only Rooms
+                .Cast<Room>()                                    // Cast the elements to Room type
+                .ToList();                                       // Convert the collection to a List<Room> and return
+        }
+
+        /// <summary>
+        /// Gets the center point of a room for note placement
+        /// </summary>
+        /// <returns>The center point or null if not found</returns>
+        internal static XYZ GetRoomCenterPoint(Room curRoom)
+        {
+            try
+            {
+                LocationPoint location = curRoom.Location as LocationPoint;
+                return location?.Point;
+            }
+            catch
+            {
+                // Fallback: use bounding box center
+                var bbox = curRoom.get_BoundingBox(null);
+                if (bbox != null)
+                {
+                    return (bbox.Min + bbox.Max) / 2;
+                }
+                return null;
+            }
         }
 
         #endregion
@@ -431,17 +505,14 @@ namespace ConvertSpecLevel.Common
             return m_views;
         }
 
-        public static List<View> GetAllSectionViews(Document curDoc)
+        public static List<View> GetAllSectionViews(Document m_doc)
         {
-            //get all ViewSection views
-            FilteredElementCollector m_colViews = new FilteredElementCollector(curDoc)
-                .OfCategory(BuiltInCategory.OST_Views)
-                .OfClass(typeof(ViewSection));
+            //get all views
+            FilteredElementCollector m_colViews = new FilteredElementCollector(m_doc);
+            m_colViews.OfCategory(BuiltInCategory.OST_Views);
+            m_colViews.OfClass(typeof(ViewSection));
 
-            // create an empty list to hold the views
             List<View> m_Views = new List<View>();
-
-            // loop through each view & add it to the list
             foreach (View x in m_colViews)
             {
                 if (x.IsTemplate == false)
@@ -450,8 +521,67 @@ namespace ConvertSpecLevel.Common
                 }
             }
 
-            // return the list of views
             return m_Views;
+        }
+
+        internal static List<View> GetAllViewsByNameContains(Document curDoc, string viewName)
+        {
+            // create an empty list to hold the results
+            List<View> m_returnList = new List<View>();
+
+            // get all views in the document
+            List<View> m_allViews = GetAllViews(curDoc);
+
+            // loop through all views
+            foreach (View curView in m_allViews)
+            {
+                // check if the view name contains the specified string
+                if (curView.Name.IndexOf(viewName, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // add the view to the return list
+                    m_returnList.Add(curView);
+                }
+            }
+
+            // return the list of views that match the criteria
+            return m_returnList;
+        }
+
+        internal static List<View> GetAllViewsByNameContainsAndAssociatedLevel(Document curDoc, string viewName, string levelName)
+        {
+            // create an empty list to hold the results
+            List<View> m_returnList = new List<View>();
+
+            // get all views in the document
+            List<View> m_allViews = GetAllViews(curDoc);
+
+            // loop through all views
+            foreach (View curView in m_allViews)
+            {
+                // check if the view name contains the specified string
+                if (curView.Name.IndexOf(viewName, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // get the associated level parameter
+                    Parameter associatedLevelParam = curView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL);
+
+                    // check if the parameter is not null and has a value
+                    if (associatedLevelParam != null && associatedLevelParam.HasValue)
+                    {
+                        // get the level name from the parameter
+                        string levelNameFromParam = associatedLevelParam.AsString();
+
+                        // check if the level name matches the specified level name
+                        if (levelNameFromParam.Equals(levelName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // add the view to the return list
+                            m_returnList.Add(curView);
+                        }
+                    }
+                }
+            }
+
+            // return the list of views that match the criteria
+            return m_returnList;
         }
 
         internal static View GetViewByNameContainsAndAssociatedLevel(Document curDoc, string viewName, string levelName)
@@ -496,7 +626,7 @@ namespace ConvertSpecLevel.Common
             {
                 return null;
             }
-        } 
+        }
 
         #endregion
     }
