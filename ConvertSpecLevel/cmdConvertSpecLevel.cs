@@ -959,7 +959,7 @@ namespace ConvertSpecLevel
             string curMWCabName = curMWCab.Symbol.Name;
 
             // create a string variable for the new cabinet type name
-            string newMWCabTypeName = $"{curWidth}x{selectedMWCabHeight}x{curDepth}\"";
+            string newMWCabTypeName = $"{curWidth}x{selectedMWCabHeight}x{curDepth}";
 
             // create the new cabinet type name based on the selected height
             FamilySymbol newMWCab = Utils.GetFamilySymbolByName(curDoc, "LD_CW_Wall_2-Dr_Flush", newMWCabTypeName);
@@ -995,8 +995,7 @@ namespace ConvertSpecLevel
                 .OfCategory(BuiltInCategory.OST_Casework)
                 .OfClass(typeof(FamilyInstance))
                 .Cast<FamilyInstance>()
-                .Where(cab => cab.Symbol.Family.Name.Contains("Wall") &&
-                              (cab.Symbol.Name.Contains("Single") || cab.Symbol.Name.Contains("Double")) &&
+                .Where(cab => cab.Symbol.Family.Name.Contains("Upper Cabinet-Double") || cab.Symbol.Family.Name.Contains("Wall_2-Dr") &&
                               cab.Symbol.Name.Split('x').Length == 3)
                 .ToList();
         }       
