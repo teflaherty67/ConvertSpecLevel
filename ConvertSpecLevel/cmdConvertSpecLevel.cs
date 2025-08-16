@@ -1146,40 +1146,55 @@ namespace ConvertSpecLevel
                 // loop through each interior elevation views & add the backsplash note
                 foreach (ViewSection curIntElev in allIntElevs)
                 {
-                    //// set the active view
-                    //uidoc.ActiveView = curIntElev;
+                    // check view for Backsplash Back enabled
+                    var countersWithBacksplashBack = GetAllCountersWithBacksplashBack(curDoc, curIntElev.Id);
 
-                    // set the text note location
-
-                    // get the view boundaries
-                    BoundingBoxXYZ curViewBounds = curIntElev.get_BoundingBox(curIntElev);
-
-                    // calculate center point, 1' below bottom of bounding box
-                    XYZ centerPoint = new XYZ(
-                        (curViewBounds.Min.X + curViewBounds.Max.X) / 2, // horizontal center
-                        curViewBounds.Min.Y - 1.0, // 1' below the bottom of the bounding box
-                        0); // Z = 0 for view plane
-
-                    try
+                    // place note if Backsplash Back is enabled
+                    if (countersWithBacksplashBack.Any())
                     {
-                        // create a new text note
-                        TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, centerPoint, "Full Tile Backsplash", backsplashNoteType.Id);
+                        // use crop region for positioning
+                        BoundingBoxXYZ cropBox = curIntElev.CropBox;
 
-                        // set text note properties
-                        backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
-                        backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+                        // set note insertion point
+                        XYZ notePosition = new XYZ(
+                            (cropBox.Min.X + cropBox.Max.X) / 2, // horizontal center of crop box
+                            cropBox.Min.Y - 1.0, // 1' below the bottom of the crop box
+                            0); // Z = 0 for view plane
 
-                        // add leader lines
-                        Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
-                        Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                        // place note, 1 per view
+                        try
+                        {
+                            // create a new text note
+                            TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, notePosition, "Full Tile Backsplash", backsplashNoteType.Id);
+
+                            // set text note properties
+                            backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
+                            backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+
+                            // add leader lines
+                            Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
+                            Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                        }
+                        catch (Exception ex)
+                        {
+                            Utils.TaskDialogError("Error", "Spec Conversion", $"Error creating backsplash note in view {curIntElev.Name}: {ex.Message}");
+                            continue;
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Utils.TaskDialogError("Error", "Spec Conversion", $"Error creating backsplash note in view {curIntElev.Name}: {ex.Message}");
-                        continue;
-                    }
+
                 }
             }
+        }
+
+        private List<FamilyInstance> GetAllCountersWithBacksplashBack(Document curDoc, ElementId viewId)
+        {
+            return new FilteredElementCollector(curDoc, viewId)
+                .OfCategory(BuiltInCategory.OST_GenericModel)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen_Counter") &&
+                             gm.LookupParameter("Backsplash Back")?.AsInteger() == 1)
+                .ToList();
         }
 
         private List<ViewSection> GetAllIntElevViews(Document curDoc)
