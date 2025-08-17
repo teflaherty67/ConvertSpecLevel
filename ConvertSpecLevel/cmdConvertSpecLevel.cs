@@ -230,20 +230,57 @@ namespace ConvertSpecLevel
                         t.Start();
 
                         // replace the light fixtures in the specified rooms per the selected spec level
-                        UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
+                        var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
 
                         //// add/remove the sprinkler outlet in the Garage
                         //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
 
                         // add/remove the ceiling fan note in the views
-                        ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+                        var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         //// add/remove sprinkler outlet note
                         //RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                         // commit the transaction
                         t.Commit();
-                    }
+
+                        // Show summary message with proper grammar
+                        string roomList;
+                        if (roomsUpdated.Count == 0)
+                        {
+                            roomList = "No rooms";
+                        }
+                        else if (roomsUpdated.Count == 1)
+                        {
+                            roomList = roomsUpdated[0];
+                        }
+                        else if (roomsUpdated.Count == 2)
+                        {
+                            roomList = $"{roomsUpdated[0]} and {roomsUpdated[1]}";
+                        }
+                        else
+                        {
+                            roomList = string.Join(", ", roomsUpdated.Take(roomsUpdated.Count - 1)) + $", and {roomsUpdated.Last()}";
+                        }
+
+                        // Determine action based on spec level
+                        string action = selectedSpecLevel switch
+                        {
+                            "Complete Home" => "added",
+                            "Complete Home Plus" => "deleted",
+                            _ => "processed"
+                        };
+
+                        // Grammar for fixtures and views
+                        string fixtureText = roomsUpdated.Count == 1 ? "Fixture updated" : "Fixtures updated";
+                        string viewText = viewCount == 1 ? "view" : "views";
+
+                        // Create the final message
+                        string messageSummary = $"{fixtureText} in {roomList}. Ceiling fan notes {action} across {viewCount} {viewText}.";
+
+                        // Show the summary dialog
+                        Utils.TaskDialogInformation("Complete", "First Floor Electrical", messageSummary);
+                    }                    
                 }
                 else
                 {
@@ -1290,7 +1327,7 @@ namespace ConvertSpecLevel
         /// Updates lighting fixtures in specified rooms based on the given specification level.
         /// Only processes fixtures in rooms visible in the active view.
         /// </summary>
-        private static void UpdateLightingFixturesInActiveView(Document curDoc, string selectedSpecLevel)
+        private static (List<string> updatedRooms, int fixtureCount) UpdateLightingFixturesInActiveView(Document curDoc, string selectedSpecLevel)
         {
             // Define rooms that need lighting fixture updates
             List<string> roomsToUpdate = new List<string>
@@ -1312,7 +1349,7 @@ namespace ConvertSpecLevel
             if (targetFamilyType == null)
             {
                 TaskDialog.Show("Error", "Invalid Spec Level selected.");
-                return;
+                return (new List<string>(), 0);
             }
 
             // Get the active view
@@ -1320,7 +1357,7 @@ namespace ConvertSpecLevel
             if (activeView == null)
             {
                 TaskDialog.Show("Error", "No active view found.");
-                return;
+                return (new List<string>(), 0);
             }
 
             // Find target family symbol
@@ -1328,7 +1365,7 @@ namespace ConvertSpecLevel
             if (targetFamilySymbol == null)
             {
                 TaskDialog.Show("Error", $"Family symbol '{targetFamilyType}' not found.");
-                return;
+                return (new List<string>(), 0);
             }
 
             // Activate the family symbol if not already active
@@ -1373,32 +1410,14 @@ namespace ConvertSpecLevel
                     // Add room name to updated rooms list
                     if (!updatedRooms.Contains(room.Name))
                     {
-                        updatedRooms.Add(room.Name);
+                        Parameter paramRoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME);
+                        updatedRooms.Add(paramRoomName.AsValueString());
                     }
                 }
             }
 
-            // Show summary message with proper grammar
-            string roomList;
-            if (updatedRooms.Count == 0)
-            {
-                roomList = "No rooms";
-            }
-            else if (updatedRooms.Count == 1)
-            {
-                roomList = updatedRooms[0];
-            }
-            else if (updatedRooms.Count == 2)
-            {
-                roomList = $"{updatedRooms[0]} and {updatedRooms[1]}";
-            }
-            else
-            {
-                roomList = string.Join(", ", updatedRooms.Take(updatedRooms.Count - 1)) + $", and {updatedRooms.Last()}";
-            }
-
-            string message = $"Updated {updatedCount} light fixtures to '{targetFamilyType}' in: {roomList}";
-            Utils.TaskDialogInformation("Complete", "Spec Conversion", message);
+            // return the counts & room list
+            return (updatedRooms, updatedCount);
         }
 
         /// <summary>
@@ -1568,11 +1587,23 @@ namespace ConvertSpecLevel
                     XYZ roomCenter = Utils.GetRoomCenterPoint(curRoom);
                     if (roomCenter != null)
                     {
-                        // Create point 2' below room center
-                        XYZ notePosition = new XYZ(roomCenter.X, roomCenter.Y - 2.0, roomCenter.Z);
+                        // Get the view's directions
+                        View currentView = curDoc.GetElement(curViewId) as View;
+                        XYZ viewUp = currentView.UpDirection;
+
+                        // Create position 2' down from room center relative to the view
+                        XYZ notePosition = roomCenter - (viewUp * .5); // move 2' in the opposite of "up" direction
 
                         // Create the text note
-                        TextNote.Create(curDoc, curViewId, notePosition, noteText, textNoteType.Id);
+                        TextNote newNote = TextNote.Create(curDoc, curViewId, notePosition, noteText, textNoteType.Id);
+
+                        // set the justification
+                        newNote.HorizontalAlignment = HorizontalTextAlignment.Center;
+
+                        // set the width of the note
+                        newNote.Width = .078250;
+
+                        // increment the counter
                         addedCount++;
                     }
                 }
