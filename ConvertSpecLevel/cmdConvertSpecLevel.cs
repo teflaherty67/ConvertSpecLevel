@@ -1263,36 +1263,46 @@ namespace ConvertSpecLevel
                     // place note if Backsplash Back is enabled
                     if (countersWithBacksplashBack.Any())
                     {
-                        // use crop region for positioning
-                        BoundingBoxXYZ cropBox = curIntElev.CropBox;
-
-                        // set note insertion point
-                        XYZ notePosition = new XYZ(
-                            (cropBox.Min.X + cropBox.Max.X) / 2, // horizontal center of crop box
-                            cropBox.Min.Y - 1.0, // 1' below the bottom of the crop box
-                            0); // Z = 0 for view plane
-
-                        // place note, 1 per view
-                        try
+                        // loop through each countertop with backsplash back enabled
+                        foreach (FamilyInstance curCounter in countersWithBacksplashBack)
                         {
-                            // create a new text note
-                            TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, notePosition, "Full Tile Backsplash", backsplashNoteType.Id);
+                            // get countertop location for note positioning
+                            LocationCurve countertopLoc = curCounter.Location as LocationCurve;
 
-                            // set text note properties
-                            backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
-                            backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+                            // null check for location
+                            if (countertopLoc != null)
+                            {
+                                // get the midpoint of the countertop curve
+                                Curve curve = countertopLoc.Curve;
+                                XYZ countertopPoint = curve.Evaluate(0.5, true); // midpoint of countertop
 
-                            // add leader lines
-                            Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
-                            Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
-                        }
-                        catch (Exception ex)
-                        {
-                            Utils.TaskDialogError("Error", "Spec Conversion", $"Error creating backsplash note in view {curIntElev.Name}: {ex.Message}");
-                            continue;
+                                // set note locaiton based on countertop point
+                                XYZ notePosition = new XYZ(
+                                    countertopPoint.X, // X = countertop X
+                                    countertopPoint.Y + .75, // 9" above the countertop Y
+                                    0); // Z = 0 for view plane
+
+                                try
+                                {
+                                    // create a new text note
+                                    TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, notePosition, "Full Tile Backsplash", backsplashNoteType.Id);
+
+                                    // set text note properties
+                                    backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
+                                    backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+
+                                    // add leader lines
+                                    Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
+                                    Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Utils.TaskDialogError("Error", "Spec Conversion", $"Error creating backsplash note in view {curIntElev.Name}: {ex.Message}");
+                                    continue;
+                                }
+                            }
                         }
                     }
-
                 }
             }
         }
