@@ -168,7 +168,10 @@ namespace ConvertSpecLevel
                     }
 
                     // revise the MW cabinet
-                    ReplaceMWCabinet(curDoc, selectedMWCabHeight);
+                    ReplaceMWCabinet(curDoc, selectedMWCabHeight);                    
+
+                    // raise/lower the backsplash height
+                    UpdateBacksplash(curDoc, selectedSpecLevel);
 
                     //// add/remove the Ref Sp cabinet
                     //if (selectedSpecLevel == "Complete Home" && selectedCabinet != null)
@@ -180,11 +183,6 @@ namespace ConvertSpecLevel
                     //    AddRefSpCabinet(curDoc, uidoc, selectedRefSpWall, selectedRefSp);
                     //}
 
-                    // raise/lower the backsplash height
-                    UpdateBacksplashHeight(curDoc, selectedSpecLevel);
-
-                    UpdateBacksplashNote(curDoc, uidoc, selectedSpecLevel);
-                    
                     // commit the transaction
                     t.Commit();
 
@@ -1112,7 +1110,7 @@ namespace ConvertSpecLevel
                 .ToList();
         }       
 
-        private void UpdateBacksplashHeight(Document curDoc, string selectedSpecLevel)
+        private void UpdateBacksplash(Document curDoc, string selectedSpecLevel)
         {
             // load the new counter & backsplash families
             Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Counter_Top-Mount");
