@@ -1279,8 +1279,8 @@ namespace ConvertSpecLevel
                                 // set note locaiton based on countertop point
                                 XYZ notePosition = new XYZ(
                                     countertopPoint.X, // X = countertop X
-                                    countertopPoint.Y + .75, // 9" above the countertop Y
-                                    0); // Z = 0 for view plane
+                                    countertopPoint.Y, // y = countertop Y
+                                    countertopPoint.Z + 3.75); // countertop Z + 9"
 
                                 try
                                 {
