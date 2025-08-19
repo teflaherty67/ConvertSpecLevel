@@ -1119,8 +1119,6 @@ namespace ConvertSpecLevel
             // get all generic model instances in the document
             List<FamilyInstance> m_allGenericModels = Utils.GetAllGenericFamilies(curDoc);
 
-            var allFamilyNames = m_allGenericModels.Select(gm => gm.Symbol.Family.Name).ToList();
-
             // filter the list for counter tops and backsplashes
             List<FamilyInstance> listBacksplashGMs = m_allGenericModels
                 .Where(gm => gm.Symbol.Family.Name.Contains("Kitchen Counter") || gm.Symbol.Family.Name.Contains("Kitchen_Counter"))
@@ -1130,6 +1128,16 @@ namespace ConvertSpecLevel
             if (listBacksplashGMs == null || !listBacksplashGMs.Any())
             {
                 Utils.TaskDialogError("Error", "Spec Conversion", "No Kitchen Counter or Backsplash generic models found in the project.");
+                return;
+            }
+
+            // get all the interior elevation views
+            List<ViewSection> allIntElevs = GetAllIntElevViews(curDoc);
+
+            // check if any interior elevation views were found
+            if (allIntElevs == null || !allIntElevs.Any())
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevation views found in the project.");
                 return;
             }
 
@@ -1174,6 +1182,8 @@ namespace ConvertSpecLevel
                     if (paramBacksplashBack != null && paramBacksplashBack.AsInteger() == 1) // 1 = yes/true
                     {
                         SetBacksplashHeight(curGM, selectedSpecLevel, "Backsplash Height");
+
+                        ManageBacksplashNote(curDoc, curGM, allIntElevs, selectedSpecLevel);
                     }
                 }
                 else if (curGM.Symbol.Family.Name.Contains("Kitchen_Counter"))
@@ -1185,6 +1195,8 @@ namespace ConvertSpecLevel
                     if (paramBacksplashBack != null && paramBacksplashBack.AsInteger() == 1) // 1 = yes/true
                     {
                         SetBacksplashHeight(curGM, selectedSpecLevel, "Backsplash Height");
+
+                        ManageBacksplashNote(curDoc, curGM, allIntElevs, selectedSpecLevel);
                     }
                 }
             }
@@ -1205,7 +1217,7 @@ namespace ConvertSpecLevel
             }
         }
 
-        private void UpdateBacksplashNote(Document curDoc, UIDocument uidoc, string selectedSpecLevel)
+        private void ManageBacksplashNote(Document curDoc, FamilyInstance curGM, List<ViewSection> allIntElevs, string selectedSpecLevel)
         {
             // get the selected spec level
             if (selectedSpecLevel == "Complete Home")
@@ -1242,30 +1254,31 @@ namespace ConvertSpecLevel
                     return;
                 }
 
-                // get all the interior elevation views
-                List<ViewSection> allIntElevs = GetAllIntElevViews(curDoc);
-
-                // check if any interior elevation views were found
-                if (allIntElevs == null || !allIntElevs.Any())
-                {
-                    Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevation views found in the project.");
-                    return;
-                }
-
-                // loop through each interior elevation views & add the backsplash note
+                // loop through interior elevation views & find the one with the current countertop
                 foreach (ViewSection curIntElev in allIntElevs)
                 {
-                    // check view for Backsplash Back enabled
-                    var countersWithBacksplashBack = GetAllCountersWithBacksplashBack(curDoc, curIntElev.Id);
+                    // check if the current countertop is in the view
+                    var counterInView = new FilteredElementCollector(curDoc, curIntElev.Id)
+                        .OfCategory(BuiltInCategory.OST_GenericModel)
+                        .OfClass(typeof(FamilyInstance))
+                        .Cast<FamilyInstance>()
+                        .FirstOrDefault(gm => gm.Id == curGM.Id);
 
-                    // place note if Backsplash Back is enabled
-                    if (countersWithBacksplashBack.Any())
+                    // null check for the counter in view
+                    if (counterInView != null)
                     {
-                        // loop through each countertop with backsplash back enabled
-                        foreach (FamilyInstance curCounter in countersWithBacksplashBack)
+                        // get all text notes & filter for backsplash note
+                        List<TextNote> backsplashNotes = new FilteredElementCollector(curDoc, curIntElev.Id)
+                            .OfClass(typeof(TextNote))
+                            .Cast<TextNote>()
+                            .Where(note => note.Text.Contains("Full Tile Backsplash"))
+                            .ToList();
+
+                        // check if any backsplash notes were found
+                        if (backsplashNotes == null || !backsplashNotes.Any())
                         {
                             // get countertop location for note positioning
-                            LocationCurve countertopLoc = curCounter.Location as LocationCurve;
+                            LocationCurve countertopLoc = curGM.Location as LocationCurve;
 
                             // null check for location
                             if (countertopLoc != null)
@@ -1292,6 +1305,12 @@ namespace ConvertSpecLevel
                                     // add leader lines
                                     Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
                                     Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+
+                                    // set leader attachment to midpoint
+                                    backsplashNote.LeaderLeftAttachment = LeaderAtachement.Midpoint;
+                                    backsplashNote.LeaderRightAttachment = LeaderAtachement.Midpoint;
+
+                                    break; // exit loop after creating note in correct view
                                 }
                                 catch (Exception ex)
                                 {
@@ -1303,7 +1322,7 @@ namespace ConvertSpecLevel
                     }
                 }
             }
-        }
+        }    
 
         private List<FamilyInstance> GetAllCountersWithBacksplashBack(Document curDoc, ElementId viewId)
         {
