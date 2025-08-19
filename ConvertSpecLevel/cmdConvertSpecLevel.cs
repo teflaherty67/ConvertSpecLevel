@@ -230,11 +230,11 @@ namespace ConvertSpecLevel
                         // replace the light fixtures in the specified rooms per the selected spec level
                         var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
 
-                        //// add/remove the sprinkler outlet in the Garage
-                        //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
-
                         // add/remove the ceiling fan note in the views
                         var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+
+                        //// add/remove the sprinkler outlet in the Garage
+                        //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
 
                         //// add/remove sprinkler outlet note
                         //RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
