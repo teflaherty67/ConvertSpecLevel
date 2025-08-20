@@ -109,6 +109,17 @@ namespace ConvertSpecLevel
             return cmbMWCabHeight.SelectedItem as string;
         }
 
+        private void chkAdjustWindowHeadHeights_Checked(object sender, RoutedEventArgs e)
+        {
+            chkAdjustWindowHeights.IsEnabled = true;
+        }
+
+        private void chkAdjustWindowHeadHeights_Unchecked(object sender, RoutedEventArgs e)
+        {
+            chkAdjustWindowHeights.IsEnabled = false;
+            chkAdjustWindowHeights.IsChecked = false;
+        }
+
         public bool IsAdjustWindowHeadHeightsChecked()
         {
             return chkAdjustWindowHeadHeights.IsChecked == true;
