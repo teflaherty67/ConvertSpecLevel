@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConvertSpecLevel"
         mc:Ignorable="d"
-        Title="Convert Spec Level" Height="290" Width="320"
+        Title="Convert Spec Level" Height="380" Width="320"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False">    
@@ -20,6 +20,7 @@
             <RowDefinition Height="35"/>
             <RowDefinition Height="35"/>
             <RowDefinition Height="35"/>
+            <RowDefinition Height="90"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="35"/>
         </Grid.RowDefinitions>
@@ -65,9 +66,45 @@
         
         <!--Dynamic Row 2-->
 
+        <!--Plate & Window Adjustments Section-->
+        <StackPanel Grid.Row="6">
+            <Grid Margin="10,0,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox x:Name="chkAdjustPlates"
+                          Grid.Column="0"
+                          Content="Adjust Plates:"
+                          VerticalAlignment="Center"
+                          Checked="chkAdjustPlates_Checked"
+                          Unchecked="chkAdjustPlates_Unchecked"/>
+                <TextBox x:Name="txtPlateAdjustment"
+                         Grid.Column="1"
+                         Height="25"
+                         Margin="10,5,0,0"
+                         VerticalAlignment="Center"
+                         IsEnabled="False"
+                         Text="+12"/>
+            </Grid>
+
+            <CheckBox x:Name="chkAdjustWindowHeadHeights"
+                      Content="Adjust window head heights with plate adjustment"
+                      Margin="10,5,0,5"
+                      IsEnabled="False"
+                      Checked="chkAdjustWindowHeadHeights_Checked"
+                      Unchecked="chkAdjustWindowHeadHeights_Unchecked"/>
+
+            <CheckBox x:Name="chkAdjustWindowHeights"
+                      Content="Adjust window heights with plate adjustments"
+                      Margin="10,5,0,0"
+                      IsEnabled="False"/>
+        </StackPanel>
+
 
         <!--Buttons Section-->
-        <StackPanel Grid.Row="7" 
+        <StackPanel Grid.Row="8" 
            Orientation="Horizontal" 
            HorizontalAlignment="Right" 
            VerticalAlignment="Center">

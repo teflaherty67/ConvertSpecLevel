@@ -109,6 +109,26 @@ namespace ConvertSpecLevel
             return cmbMWCabHeight.SelectedItem as string;
         }
 
+        public bool IsAdjustPlatesChecked()
+        {
+            return chkAdjustPlates.IsChecked == true;
+        }
+
+        public string GetPlateAdjustmentValue()
+        {
+            return txtPlateAdjustment.Text;
+        }
+
+        public bool IsAdjustWindowHeadHeightsChecked()
+        {
+            return chkAdjustWindowHeadHeights.IsChecked == true;
+        }
+
+        public bool IsAdjustWindowHeightsChecked()
+        {
+            return chkAdjustWindowHeights.IsChecked == true;
+        }
+
         #endregion
 
         #region Dynamic Controls
