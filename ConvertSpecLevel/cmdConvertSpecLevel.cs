@@ -159,11 +159,13 @@ namespace ConvertSpecLevel
                     {
                         // lower the upper cabinets to 36"
                         ReplaceWallCabinets(curDoc, "36");
+                        ManageCaseworkTags(curDoc, selectedSpecLevel);
                     }
                     else
                     {
                         // raise the upper cabinets to 42"
                         ReplaceWallCabinets(curDoc, "42");
+                        ManageCaseworkTags(curDoc, selectedSpecLevel);
                     }
 
                     // revise the MW cabinet
@@ -366,7 +368,9 @@ namespace ConvertSpecLevel
             #endregion
 
             return Result.Succeeded;
-        }    
+        }
+
+       
 
         #region Finish Floor Methods
 
@@ -1128,7 +1132,44 @@ namespace ConvertSpecLevel
                 .Where(cab => cab.Symbol.Family.Name.Contains("Upper Cabinet-Double") || cab.Symbol.Family.Name.Contains("Wall_2-Dr") &&
                               cab.Symbol.Name.Split('x').Length == 3)
                 .ToList();
-        }       
+        }
+
+        private void ManageCaseworkTags(Document curDoc, string selectedSpecLevel)
+        {
+            // get all wall cabinet tags in the document
+            List<IndependentTag> m_allWallCabTags = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .Where(tag => tag.TagText.StartsWith("W"))
+                .ToList();
+
+            // loop through the list & raise or lower the tag based on the spec level
+            foreach (IndependentTag curTag in m_allWallCabTags)
+            {
+                // get the location of the tag
+                XYZ curTagPoint = curTag.TagHeadPosition;
+
+                // check for null
+                if (curTagPoint == null)
+                {
+                    continue;
+                }
+
+                // adjust tag locan based on spec level
+                if (selectedSpecLevel == "Complete Home")
+                {
+                    // lower the tag by 6"
+                    XYZ newTagPoint = new XYZ(curTagPoint.X, curTagPoint.Y, curTagPoint.Z - 0.5);
+                    curTag.TagHeadPosition = newTagPoint;
+                }
+                else
+                {
+                    // raise the tag by 6"
+                    XYZ newTagPoint = new XYZ(curTagPoint.X, curTagPoint.Y, curTagPoint.Z + 0.5);
+                    curTag.TagHeadPosition = newTagPoint;
+                }
+            }
+        }
 
         private void UpdateBacksplash(Document curDoc, string selectedSpecLevel)
         {
