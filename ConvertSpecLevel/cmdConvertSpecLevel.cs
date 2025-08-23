@@ -1371,42 +1371,6 @@ namespace ConvertSpecLevel
                                     backsplashNote.LeaderLeftAttachment = LeaderAtachement.Midpoint;
                                     backsplashNote.LeaderRightAttachment = LeaderAtachement.Midpoint;
 
-                                    // --- Bulletproofing: force both leaders to be perfectly horizontal in THIS view ---
-
-                                    // Use the view's horizontal axis so it behaves in elevations/sections.
-
-                                    XYZ notePt = backsplashNote.Coord;
-
-                                    XYZ right = curIntElev.RightDirection; // view X-axis
-
-                                    double run = 2.0;                        // leader length (feet), adjust as desired
-
-
-                                    XYZ leftTarget = notePt - right * run;
-
-                                    XYZ rightTarget = notePt + right * run;
-
-
-                                    foreach (Leader ld in backsplashNote.GetLeaders())
-
-                                    {
-
-                                        // Determine which side the leader is on using the view's horizontal axis
-
-                                        bool isRightSide = right.DotProduct(ld.End - notePt) >= 0;
-
-
-                                        XYZ target = isRightSide ? rightTarget : leftTarget;
-
-
-                                        // For straight leaders, Elbow == End → a single horizontal segment
-
-                                        ld.Elbow = target;
-
-                                        ld.End = target;
-
-                                    }
-
                                     break; // exit loop after creating note in correct view
                                 }
                                 catch (Exception ex)
