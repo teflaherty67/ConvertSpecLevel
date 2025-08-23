@@ -29,8 +29,7 @@ namespace ConvertSpecLevel
                 Utils.TaskDialogError("Error", "Spec Conversion", "No First Floor plan views found in the project.");
             }
 
-            // create a variable to hold the Ref Sp's Center (Left/Right) reference for placement calculations
-            Reference refCenterLR = null;
+            
 
             // prompt the user to select the wall behind the Ref Sp
             Reference selectedRefSpWall = uidoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select wall to place Ref Sp cabinet");
@@ -53,10 +52,28 @@ namespace ConvertSpecLevel
                 Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a refrigerator. Please try again.");               
             }
 
+            // create a variable to hold the Ref Sp's Center (Left/Right) reference for placement calculations
+            Reference refCenterLR = null;
+
+            // loop through the selected Ref Sp cabinet references to find the Center (Left/Right) reference
+            foreach (Reference familyRef in selectedRefSp.GetReferences(FamilyInstanceReferenceType.CenterLeftRight))
+            {
+                // Store the centerline reference from the refrigerator
+                refCenterLR = familyRef;
+                // Take the first (and likely only) Center (Left/Right) reference
+                break;
+            }
+
+            // null check for the Center (Left/Right) reference
+            if (refCenterLR == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Could not find centerline reference for the refrigerator.");
+            }
+
             // create a transaction
             using (Transaction t = new Transaction(curDoc, "Place Ref Sp"))
             {
-                t.Start();
+                t.Start();                
 
                 // check if family is loaded
                 FamilySymbol cabRefSp = Utils.GetFamilySymbolByName(curDoc, "LD_CW_Wall_2-Dr_Flush", "39\"x27\"x15\"");
