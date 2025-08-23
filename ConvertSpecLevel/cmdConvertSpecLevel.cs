@@ -71,7 +71,7 @@ namespace ConvertSpecLevel
                     List<string> listUpdatedRooms = UpdateFloorFinishInActiveView(curDoc, selectedSpecLevel);
 
                     // manage the floor material breaks
-                    ManageFloorMaterialBreaksInActiveView(curDoc, selectedSpecLevel);
+                    ManageFloorMaterialBreaksInActiveView(curDoc, listUpdatedRooms);
 
                     // create a list of the rooms updated
                     string listRooms;
@@ -465,27 +465,19 @@ namespace ConvertSpecLevel
             return m_matchingRooms;
         }
 
-        private void ManageFloorMaterialBreaksInActiveView(Document curDoc, string selectedSpecLevel)
-        {
-            if (selectedSpecLevel == "Complete Home Plus")
-            {
-                // remove the floor material breaks
-                RemoveFloorMaterialBreaks(curDoc);
-            }
-            else if (selectedSpecLevel == "Complete Home")
-            {
-                // add floor material breaks
-                AddFloorMaterialBreaks(curDoc);
-            }
-        }
-
-        private void RemoveFloorMaterialBreaks(Document curDoc)
+        private void ManageFloorMaterialBreaksInActiveView(Document curDoc, List<string> listUpdatedRooms)
         {
             // get all the doors in the active view
             List<FamilyInstance> allDoorsInView = Utils.GetAllDoorsInActiveView(curDoc);
 
-            // loop through each door
-            foreach (FamilyInstance curDoor in allDoorsInView)
+            // filter the list for doors with ToRoom or FromRoom matching any of the updated rooms
+            var filteredDoors = allDoorsInView.Where(door => listUpdatedRooms.Any(roomName =>
+            (door.ToRoom != null && door.ToRoom.Name.IndexOf(roomName, StringComparison.OrdinalIgnoreCase) >= 0) ||
+            (door.FromRoom != null && door.FromRoom.Name.IndexOf(roomName, StringComparison.OrdinalIgnoreCase) >= 0)))
+                .ToList();
+
+            // loop through filtereedDoors
+            foreach (FamilyInstance curDoor in filteredDoors)
             {
                 // get ToRoom & FromRoom values
                 Room toRoom = curDoor.ToRoom;
@@ -497,200 +489,193 @@ namespace ConvertSpecLevel
                     continue;
                 }
 
-                // check for match
+                // if materials match, remove any material break
                 if (toRoom.LookupParameter("Floor Finish").AsString() == (fromRoom.LookupParameter("Floor Finish").AsString()))
                 {
-                    // if material matches, get the door's location point
-                    LocationPoint doorLoc = curDoor.Location as LocationPoint;
-                    XYZ doorPoint = doorLoc.Point;
-
-                    // check for null
-                    if (doorLoc == null || doorPoint == null)
-                    {
-                        continue;
-                    }
-
-                    // get all the floor material breaks in the active view
-                    List<FamilyInstance> m_allMaterialBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
-                        .OfClass(typeof(FamilyInstance))
-                        .OfCategory(BuiltInCategory.OST_FurnitureSystems)
-                        .Cast<FamilyInstance>()
-                        .Where(fi => fi.Symbol.Family.Name == "Floor Material")
-                        .ToList();
-
-                    foreach (FamilyInstance curBreak in m_allMaterialBreaks)
-                    {
-                        // get the material break location point
-                        LocationCurve breakLoc = curBreak.Location as LocationCurve;
-                        Curve breakCurve = breakLoc.Curve;
-                        XYZ breakPoint = breakCurve.Evaluate(0.5, true);
-
-                        // check for null
-                        if (breakLoc == null || breakPoint == null)
-                        {
-                            continue;
-                        }
-
-                        // calculate the distance between doorPoint & breakPoint
-                        double distance = doorPoint.DistanceTo(breakPoint);
-
-                        // check if distance is 18" or less
-                        if (distance <= 1.5)
-                        {
-                            // if so, delete the material break
-                            curDoc.Delete(curBreak.Id);
-                        }
-                    }
+                    RemoveFloorMaterialBreak(curDoc, curDoor);
+                }
+                else // if materials do not match, add a material break if needed
+                {
+                    AddFloorMaterialBreak(curDoc, curDoor);
                 }
             }
         }
 
-        private void AddFloorMaterialBreaks(Document curDoc)
-        {
-            // get all the doors in the active view
-            List<FamilyInstance> allDoorsInView = Utils.GetAllDoorsInActiveView(curDoc);
+       
 
-            // loop through each door
-            foreach (FamilyInstance curDoor in allDoorsInView)
+        private void RemoveFloorMaterialBreak(Document curDoc,FamilyInstance curDoor)
+        {
+            // get the door's location point
+            LocationPoint doorLoc = curDoor.Location as LocationPoint;
+            XYZ doorPoint = doorLoc.Point;
+
+            // check for null
+            if (doorLoc == null || doorPoint == null)
             {
-                // get ToRoom & FromRoom values
-                Room toRoom = curDoor.ToRoom;
-                Room fromRoom = curDoor.FromRoom;
+                return;
+            }
+
+            // get all the floor material breaks in the active view
+            List<FamilyInstance> m_allMaterialBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_FurnitureSystems)
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.Family.Name == "Floor Material")
+                .ToList();
+
+            foreach (FamilyInstance curBreak in m_allMaterialBreaks)
+            {
+                // get the material break location point
+                LocationCurve breakLoc = curBreak.Location as LocationCurve;
+                Curve breakCurve = breakLoc.Curve;
+                XYZ breakPoint = breakCurve.Evaluate(0.5, true);
 
                 // check for null
-                if (toRoom == null || fromRoom == null)
+                if (breakLoc == null || breakPoint == null)
                 {
                     continue;
                 }
 
-                // check for non-match
-                if (toRoom.LookupParameter("Floor Finish").AsString() != (fromRoom.LookupParameter("Floor Finish").AsString()))
+                // calculate the distance between doorPoint & breakPoint
+                double distance = doorPoint.DistanceTo(breakPoint);
+
+                // check if distance is 18" or less
+                if (distance <= 1.5)
                 {
-                    // if materials do not match, get the door's location point
-                    LocationPoint doorLoc = curDoor.Location as LocationPoint;
-                    XYZ doorPoint = doorLoc.Point;
+                    // if so, delete the material break
+                    curDoc.Delete(curBreak.Id);
+                }
+            }
+        }
 
-                    // check for null
-                    if (doorLoc == null || doorPoint == null)
-                    {
-                        continue;
-                    }
+        private void AddFloorMaterialBreak(Document curDoc, FamilyInstance curDoor)
+        {
+            // get ToRoom & FromRoom values
+            Room toRoom = curDoor.ToRoom;
+            Room fromRoom = curDoor.FromRoom;
 
-                    // get all the floor material breaks in the active view
-                    List<FamilyInstance> m_allMaterialBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
-                        .OfClass(typeof(FamilyInstance))
-                        .OfCategory(BuiltInCategory.OST_FurnitureSystems)
-                        .Cast<FamilyInstance>()
-                        .Where(fi => fi.Symbol.Family.Name == "Floor Material")
-                        .ToList();
+            // check for null
+            if (toRoom == null || fromRoom == null)
+            {
+                return;
+            }
 
-                    // declare a boolean flag
-                    bool breakExists = false;
+            // if materials do not match, get the door's location point
+            LocationPoint doorLoc = curDoor.Location as LocationPoint;
+            XYZ doorPoint = doorLoc.Point;
 
-                    foreach (FamilyInstance curBreak in m_allMaterialBreaks)
-                    {
-                        // get the material break location point
-                        LocationCurve breakLoc = curBreak.Location as LocationCurve;
-                        Curve breakCurve = breakLoc.Curve;
-                        XYZ breakPoint = breakCurve.Evaluate(0.5, true);
+            // check for null
+            if (doorLoc == null || doorPoint == null)
+            {
+                return;
+            }
 
-                        // check for null
-                        if (breakLoc == null || breakPoint == null)
-                        {
-                            continue;
-                        }
+            // get all the floor material breaks in the active view
+            List<FamilyInstance> m_allMaterialBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_FurnitureSystems)
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.Family.Name == "Floor Material")
+                .ToList();
 
-                        // calculate the distance between doorPoint & breakPoint
-                        double distance = doorPoint.DistanceTo(breakPoint);
+            // declare a boolean flag
+            bool breakExists = false;
 
-                        // check if distance is 18" or less
-                        if (distance <= 1.5)
-                        {
-                            // skip this door & go to the next
-                            breakExists = true;
-                            break;
-                        }
-                    }
+            foreach (FamilyInstance curBreak in m_allMaterialBreaks)
+            {
+                // get the material break location point
+                LocationCurve breakLoc = curBreak.Location as LocationCurve;
+                Curve breakCurve = breakLoc.Curve;
+                XYZ breakPoint = breakCurve.Evaluate(0.5, true);
 
-                    if (!breakExists)
-                    {
-                        // load the current family into the project
-                        Family materialFamily = Utils.LoadFamilyFromLibrary(curDoc,
-                            @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation", "LD_AN_Floor_Material");
+                // check for null
+                if (breakLoc == null || breakPoint == null)
+                {
+                    continue;
+                }
 
-                        // get the type from the family
-                        FamilySymbol materialSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_AN_Floor_Material", "Type 1");
+                // calculate the distance between doorPoint & breakPoint
+                double distance = doorPoint.DistanceTo(breakPoint);
 
-                        // activate the family & symbol
-                        if (!materialSymbol.IsActive)
-                        {
-                            materialSymbol.Activate();
-                        }
+                // check if distance is 18" or less
+                if (distance <= 1.5)
+                {
+                    // skip this door & go to the next
+                    breakExists = true;
+                    break;
+                }
+            }
 
-                        // get the door width
-                        double drWidthParam = curDoor.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble();
+            if (!breakExists)
+            {
+                // load the current family into the project
+                Family materialFamily = Utils.LoadFamilyFromLibrary(curDoc,
+                    @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation", "LD_AN_Floor_Material");
 
-                        // get the wall that hosts the door
-                        Wall drWall = curDoor.Host as Wall;
+                // get the type from the family
+                FamilySymbol materialSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_AN_Floor_Material", "Type 1");
 
-                        // null check for host
-                        if (drWall == null)
-                        {
-                            continue;
-                        }
+                // activate the family & symbol
+                if (!materialSymbol.IsActive)
+                {
+                    materialSymbol.Activate();
+                }
 
-                        // get wall location curve
-                        LocationCurve wallLoc = drWall.Location as LocationCurve;
+                // get the door width
+                double drWidthParam = curDoor.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble();
 
-                        // check for null curve
-                        if (wallLoc == null)
-                        {
-                            continue;
-                        }
+                // get the wall that hosts the door
+                Wall drWall = curDoor.Host as Wall;
 
-                        // get the curve property from the wall
-                        Curve wallCurve = wallLoc.Curve;
+                // null check for host
+                if (drWall == null)
+                {
+                    return;
+                }
 
-                        // get the work plane
-                        Level workPlane = curDoc.GetElement(curDoc.ActiveView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
+                // get wall location curve
+                LocationCurve wallLoc = drWall.Location as LocationCurve;
 
-                        // cast the curve to a line
-                        Line wallLine = wallCurve as Line;
-                        if (wallLine != null)
-                        {
-                            // get the wall direction
-                            XYZ wallDirection = wallLine.Direction;
+                // check for null curve
+                if (wallLoc == null)
+                {
+                    return;
+                }
 
-                            //// get the center of the door opening
-                            //XYZ doorCenter = wallLine.Evaluate(0.5, true);
+                // get the curve property from the wall
+                Curve wallCurve = wallLoc.Curve;
 
-                            //// create a perpendicular vector
-                            //XYZ perpendicular = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+                // get the work plane
+                Level workPlane = curDoc.GetElement(curDoc.ActiveView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
 
-                            // create start point
-                            XYZ startPoint = doorPoint - (wallDirection * (drWidthParam / 2));
+                // cast the curve to a line
+                Line wallLine = wallCurve as Line;
+                if (wallLine != null)
+                {
+                    // get the wall direction
+                    XYZ wallDirection = wallLine.Direction;                    
 
-                            // create end point  
-                            XYZ endPoint = doorPoint + (wallDirection * (drWidthParam / 2));
+                    // create start point
+                    XYZ startPoint = doorPoint - (wallDirection * (drWidthParam / 2));
 
-                            // create a line to place the break
-                            Line breakLine = Line.CreateBound(startPoint, endPoint);
+                    // create end point  
+                    XYZ endPoint = doorPoint + (wallDirection * (drWidthParam / 2));
 
-                            // create a new Floor Material instance
-                            FamilyInstance newBreak = curDoc.Create.NewFamilyInstance(breakLine, materialSymbol, workPlane, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                    // create a line to place the break
+                    Line breakLine = Line.CreateBound(startPoint, endPoint);
 
-                            // set the length of the break
-                            //newBreak.LookupParameter("Length").Set(drWidthParam);
+                    // create a new Floor Material instance
+                    FamilyInstance newBreak = curDoc.Create.NewFamilyInstance(breakLine, materialSymbol, workPlane, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
-                            // set the floor finish for the FromRoom
-                            string fromRmFinish = fromRoom.LookupParameter("Floor Finish").AsString();
-                            newBreak.LookupParameter("Floor 1").Set(fromRmFinish);
+                    // set the floor finish for the FromRoom
+                    string fromRmFinish = fromRoom.LookupParameter("Floor Finish").AsString();
+                    if (fromRmFinish == "Carpet") fromRmFinish = "C";
+                    newBreak.LookupParameter("Floor 1").Set(fromRmFinish);
 
-                            // set the floor finish for the FromRoom
-                            string toRmFinish = toRoom.LookupParameter("Floor Finish").AsString();
-                            newBreak.LookupParameter("Floor 2").Set(toRmFinish);
-                        }
-                    }
+                    // set the floor finish for the ToRoom
+                    string toRmFinish = toRoom.LookupParameter("Floor Finish").AsString();
+                    if (toRmFinish == "Carpet") toRmFinish = "C";
+                    newBreak.LookupParameter("Floor 2").Set(toRmFinish);
                 }
             }
         }
