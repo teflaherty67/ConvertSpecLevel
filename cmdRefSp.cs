@@ -27,9 +27,8 @@ namespace ConvertSpecLevel
             else
             {
                 Utils.TaskDialogError("Error", "Spec Conversion", "No First Floor plan views found in the project.");
-            }
-
-            
+                return Result.Failed;
+            }            
 
             // prompt the user to select the wall behind the Ref Sp
             Reference selectedRefSpWall = uidoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select wall to place Ref Sp cabinet");
@@ -40,7 +39,8 @@ namespace ConvertSpecLevel
             // verify the selected element is a wall
             if (selectedWall == null)
             {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");                
+                Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
+                return Result.Failed;
             }
 
             // prompt the user to select the Ref Sp
@@ -49,7 +49,8 @@ namespace ConvertSpecLevel
             // verify the selected element is a family instance
             if (selectedRefSp == null)
             {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a refrigerator. Please try again.");               
+                Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a refrigerator. Please try again.");
+                return Result.Failed;
             }
 
             // create a variable to hold the Ref Sp's Center (Left/Right) reference for placement calculations
@@ -60,6 +61,7 @@ namespace ConvertSpecLevel
             {
                 // Store the centerline reference from the refrigerator
                 refCenterLR = familyRef;
+
                 // Take the first (and likely only) Center (Left/Right) reference
                 break;
             }
@@ -68,6 +70,7 @@ namespace ConvertSpecLevel
             if (refCenterLR == null)
             {
                 Utils.TaskDialogError("Error", "Spec Conversion", "Could not find centerline reference for the refrigerator.");
+                return Result.Failed;
             }
 
             // create a transaction
@@ -82,13 +85,14 @@ namespace ConvertSpecLevel
                 if (cabRefSp == null)
                 {
                     // load the family
-                    Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
+                    Family cabFam = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
 
                     // Check if the cabinet family loaded successfully
-                    if (cabRefSp == null)
+                    if (cabFam == null)
                     {
                         // Show error message if cabinet family failed to load
                         Utils.TaskDialogError("Error", "Spec Conversion", "Could not load Ref Sp cabinet family from library.");
+                        return Result.Failed;
                     }
 
                     // try to get the family symbol again
@@ -99,6 +103,7 @@ namespace ConvertSpecLevel
                     {
                         // Show error message if cabinet type not found
                         Utils.TaskDialogError("Error", "Spec Conversion", "Could not find Ref Sp cabinet type in the project after loading family.");
+                        return Result.Failed;
                     }
                 }
 
@@ -109,48 +114,36 @@ namespace ConvertSpecLevel
                     curDoc.Regenerate();
                 }
 
-                // Get the geometric curve from the refrigerator's centerline reference
-                GeometryObject fridgeGeometry = selectedRefSp.GetGeometryObjectFromReference(refCenterLR);
+                // Get refrigerator location point
+                LocationPoint fridgeLocation = selectedRefSp.Location as LocationPoint;
+                XYZ fridgePoint = fridgeLocation.Point;                            
 
-                // Cast the geometry object to a Line for centerline calculations
-                Line fridgeCenterLine = fridgeGeometry as Line;
-
-                // check if the fridge centerline is null
-                if (fridgeCenterLine == null)
+                // check if the fridge location point is null
+                if (fridgePoint == null)
                 {
                     Utils.TaskDialogError("Error", "Spec Conversion", "Refrigerator centerline is not a straight line. Cannot calculate cabinet placement.");
+                    return Result.Failed;
                 }
-
+               
                 // Get the wall's location curve to find intersection point
                 LocationCurve wallLocation = selectedWall.Location as LocationCurve;
 
                 // get the curve geometry from the wall location
                 Line wallCenterLine = wallLocation.Curve as Line;
 
-                // Find where the refrigerator centerline intersects the wall centerline
-                IntersectionResultArray intersectionResults;
-                SetComparisonResult intersectionResult = fridgeCenterLine.Intersect(wallCenterLine, out intersectionResults);
-
-                // Check if the lines actually intersect
-                if (intersectionResult != SetComparisonResult.Overlap && intersectionResults.Size == 0)
-                {
-                    // Show error message if no intersection found between refrigerator and wall
-                    Utils.TaskDialogError("Error", "Spec Conversion", "Refrigerator centerline does not intersect with the selected wall. Cannot place cabinet.");
-                }
-
-                // Get the intersection point from the results
-                XYZ intersectionPoint = intersectionResults.get_Item(0).XYZPoint;
+                // Project this point onto the wall centerline to find intersection
+                XYZ projectedPoint = wallCenterLine.Project(fridgePoint).XYZPoint;                
 
                 // Calculate the wall direction vector to determine left offset direction
                 XYZ wallDirection = wallCenterLine.Direction;
 
                 // Create a perpendicular vector pointing left relative to the wall direction
-                XYZ leftDirection = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+                XYZ leftDirection = new XYZ(wallDirection.Y, -wallDirection.X, 0);
 
                 // Calculate the final cabinet placement point by offsetting 19.5" to the left and setting elevation to 75" AFF
                 XYZ cabinetPlacementPoint = new XYZ(
-                    intersectionPoint.X + (leftDirection.X * (19.5 / 12.0)),
-                    intersectionPoint.Y + (leftDirection.Y * (19.5 / 12.0)),
+                    projectedPoint.X + (leftDirection.X * (19.5 / 12.0)),
+                    projectedPoint.Y,
                     6.25); // 75" AFF (75/12 = 6.25 feet)
 
                 // Place the Ref Sp cabinet at the calculated placement point
@@ -161,6 +154,7 @@ namespace ConvertSpecLevel
                 {
                     // Show error message if cabinet placement failed
                     Utils.TaskDialogError("Error", "Spec Conversion", "Failed to place Ref Sp cabinet at calculated location.");
+                    return Result.Failed;
                 }
 
                 // Success - Ref Sp cabinet placed successfully
@@ -168,7 +162,6 @@ namespace ConvertSpecLevel
 
                 t.Commit();
             }
-
 
             return Result.Succeeded;
         }
