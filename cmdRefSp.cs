@@ -138,7 +138,7 @@ namespace ConvertSpecLevel
                                 if (projection != null && projection.Distance < minDistance)
                                 {
                                     minDistance = projection.Distance;
-                                    fridgeSideFaceRef = planarFace.GetReference();
+                                    fridgeSideFaceRef = face.Reference;
                                 }
                             }
                         }
