@@ -51,27 +51,7 @@ namespace ConvertSpecLevel
             {
                 Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a refrigerator. Please try again.");
                 return Result.Failed;
-            }
-
-            // create a variable to hold the Ref Sp's Center (Left/Right) reference for placement calculations
-            Reference refCenterLR = null;
-
-            // loop through the selected Ref Sp cabinet references to find the Center (Left/Right) reference
-            foreach (Reference familyRef in selectedRefSp.GetReferences(FamilyInstanceReferenceType.CenterLeftRight))
-            {
-                // Store the centerline reference from the refrigerator
-                refCenterLR = familyRef;
-
-                // Take the first (and likely only) Center (Left/Right) reference
-                break;
-            }
-
-            // null check for the Center (Left/Right) reference
-            if (refCenterLR == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Could not find centerline reference for the refrigerator.");
-                return Result.Failed;
-            }
+            }          
 
             // create a transaction
             using (Transaction t = new Transaction(curDoc, "Place Ref Sp"))
@@ -131,19 +111,16 @@ namespace ConvertSpecLevel
                 // get the curve geometry from the wall location
                 Line wallCenterLine = wallLocation.Curve as Line;
 
-                // Project this point onto the wall centerline to find intersection
-                XYZ projectedPoint = wallCenterLine.Project(fridgePoint).XYZPoint;                
-
                 // Calculate the wall direction vector to determine left offset direction
                 XYZ wallDirection = wallCenterLine.Direction;
 
                 // Create a perpendicular vector pointing left relative to the wall direction
-                XYZ leftDirection = new XYZ(wallDirection.Y, -wallDirection.X, 0);
+                XYZ leftDirection = wallDirection;
 
                 // Calculate the final cabinet placement point by offsetting 19.5" to the left and setting elevation to 75" AFF
                 XYZ cabinetPlacementPoint = new XYZ(
-                    projectedPoint.X + (leftDirection.X * (19.5 / 12.0)),
-                    projectedPoint.Y,
+                    fridgePoint.X + (leftDirection.X * (19.5 / 12.0)),
+                    fridgePoint.Y + (leftDirection.Y * (19.5 / 12.0)),
                     6.25); // 75" AFF (75/12 = 6.25 feet)
 
                 // Place the Ref Sp cabinet at the calculated placement point
