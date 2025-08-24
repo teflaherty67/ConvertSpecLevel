@@ -152,6 +152,9 @@ namespace ConvertSpecLevel
                     return Result.Failed;
                 }
 
+                // Determine leftDirection (you may still need some logic here)
+                XYZ leftDirection = wallDirection; // or -wallDirection based on your needs
+
                 // Calculate location on the face (19.5" offset from fridge centerline)
                 XYZ faceLocation = new XYZ(
                     (leftDirection.X * (19.5 / 12.0)),
@@ -163,12 +166,6 @@ namespace ConvertSpecLevel
 
                 // Place the cabinet on the specific wall face
                 FamilyInstance refSpCabinet = curDoc.Create.NewFamilyInstance(fridgeSideFaceRef, faceLocation, referenceDirection, cabRefSp);
-
-
-
-
-                // Place the Ref Sp cabinet at the calculated placement point
-                FamilyInstance refSpCabinet = curDoc.Create.NewFamilyInstance(cabinetPlacementPoint, cabRefSp, selectedWall, StructuralType.NonStructural);
 
                 // Check if the cabinet was placed successfully
                 if (refSpCabinet == null)
