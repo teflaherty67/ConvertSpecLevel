@@ -114,14 +114,58 @@ namespace ConvertSpecLevel
                 // Calculate the wall direction vector to determine left offset direction
                 XYZ wallDirection = wallCenterLine.Direction;
 
-                // Create a perpendicular vector pointing left relative to the wall direction
-                XYZ leftDirection = wallDirection;
+                // Get the wall geometry with references
+                Options geomOptions = new Options();
+                geomOptions.ComputeReferences = true;
+                GeometryElement wallGeom = selectedWall.get_Geometry(geomOptions);
 
-                // Calculate the final cabinet placement point by offsetting 19.5" to the left and setting elevation to 75" AFF
-                XYZ cabinetPlacementPoint = new XYZ(
-                    fridgePoint.X + (leftDirection.X * (19.5 / 12.0)),
-                    fridgePoint.Y + (leftDirection.Y * (19.5 / 12.0)),
-                    6.25); // 75" AFF (75/12 = 6.25 feet)
+                // Find the wall face closest to the refrigerator
+                Reference fridgeSideFaceRef = null;
+                double minDistance = double.MaxValue;
+
+                foreach (GeometryObject geomObj in wallGeom)
+                {
+                    Solid solid = geomObj as Solid;
+                    if (solid != null)
+                    {
+                        foreach (Face face in solid.Faces)
+                        {
+                            PlanarFace planarFace = face as PlanarFace;
+                            if (planarFace != null)
+                            {
+                                // Check if this face is close to the fridge
+                                IntersectionResult projection = planarFace.Project(fridgePoint);
+                                if (projection != null && projection.Distance < minDistance)
+                                {
+                                    minDistance = projection.Distance;
+                                    fridgeSideFaceRef = planarFace.GetReference();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Check if we found a suitable face
+                if (fridgeSideFaceRef == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", "Could not find suitable wall face for cabinet placement.");
+                    return Result.Failed;
+                }
+
+                // Calculate location on the face (19.5" offset from fridge centerline)
+                XYZ faceLocation = new XYZ(
+                    (leftDirection.X * (19.5 / 12.0)),
+                    (leftDirection.Y * (19.5 / 12.0)),
+                    6.25); // 75" AFF
+
+                // Set reference direction (typically along the wall)
+                XYZ referenceDirection = wallDirection;
+
+                // Place the cabinet on the specific wall face
+                FamilyInstance refSpCabinet = curDoc.Create.NewFamilyInstance(fridgeSideFaceRef, faceLocation, referenceDirection, cabRefSp);
+
+
+
 
                 // Place the Ref Sp cabinet at the calculated placement point
                 FamilyInstance refSpCabinet = curDoc.Create.NewFamilyInstance(cabinetPlacementPoint, cabRefSp, selectedWall, StructuralType.NonStructural);
