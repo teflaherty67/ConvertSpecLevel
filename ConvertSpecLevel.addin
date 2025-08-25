@@ -13,7 +13,7 @@
     <Text>ConvertSpecLevel - Command 2</Text>
     <Description>Some description</Description>
     <Assembly>ConvertSpecLevel\ConvertSpecLevel.dll</Assembly>
-    <FullClassName>ConvertSpecLevel.cmdRefSp</FullClassName>
+    <FullClassName>ConvertSpecLevel.cmdSprinkler</FullClassName>
     <ClientId>88301e0c-58ec-425f-a716-7218f271aab3</ClientId>
     <VendorId>com.YOUR COMPANY NAME</VendorId>
     <VendorDescription>YOUR COMPANY NAME, YOUR COMPANY URL</VendorDescription>
