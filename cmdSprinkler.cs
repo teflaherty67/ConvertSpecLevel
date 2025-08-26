@@ -116,12 +116,12 @@ namespace ConvertSpecLevel
                     if (geomObj is Solid solid && solid != null && solid.Volume > 0)
                     {
                         // Get the material of this solid to identify if it's the stud layer
-                        ElementId materialId = solid.GraphicsStyleId;
+                        ElementId materialId = solid.MaterialElementID;
                         if (materialId != null && materialId != ElementId.InvalidElementId)
                         {
                             // Get the material element to check its name
                             Material material = curDoc.GetElement(materialId) as Material;
-                            if (material != null && material.Name.Contains("2x"))
+                            if (material != null && material.Name.Contains("Wood Stud"))
                             {
                                 // Loop through all faces of this solid to find the structural core face
                                 foreach (Face face in solid.Faces)
