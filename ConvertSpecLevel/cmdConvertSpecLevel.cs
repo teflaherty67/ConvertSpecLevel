@@ -16,6 +16,24 @@ namespace ConvertSpecLevel
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document curDoc = uidoc.Document;
 
+            #region Check for Ref Sp family
+
+            // check for existence of new Ref Sp fmaily
+
+            // if found, proceed with the rest of code
+
+            // if not found, delete any existing Ref Sp, CW, outlet, & wall cabinet
+
+            // get all specialty equipment families & filter for Ref Sp
+
+            // use proximity filter to find CW connection, electircal outlet, & any wall cabinet in Ref Sp
+
+            // delete all found elements
+
+            // notify the user to place the new Ref Sp family & re-run the command
+
+            #endregion
+
             #region Form
 
             // launch the form
@@ -368,9 +386,7 @@ namespace ConvertSpecLevel
             #endregion
 
             return Result.Succeeded;
-        }
-
-       
+        }       
 
         #region Finish Floor Methods
 
