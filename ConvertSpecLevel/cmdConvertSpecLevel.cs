@@ -28,23 +28,40 @@ namespace ConvertSpecLevel
                 List<ElementId> elementsToDelete = GetElementsToDelete(curDoc);
 
                 // delete the elements
+                if (elementsToDelete.Count > 0)
+                {
+                    // create a transaction to delete the elements
+                    using (Transaction t = new Transaction(curDoc, "Delete Existing Ref Sp and Supporting Elements"))
+                    {
+                        // start the transaction
+                        t.Start();
 
-                // load the new Ref Sp family into the project
+                        // delete the elements
+                        curDoc.Delete(elementsToDelete);
 
-                // notify the user
+                        // load the new Ref Sp family
+                        Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Groups", "LD_GR_Kitchen_Ref-Sp");
 
-                Utils.TaskDialogError("Error", "Spec Conversion", "No instance of the 'LD_GR_Kitchen_Ref-Sp' family found in the project. Please place it in the kitchen and re-run the command.");
-                return Result.Failed;
+                        // commit the transaction
+                        t.Commit();
+                    }
+
+                    // notify the user
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "No instance of 'LD_GR_Kitchen_Ref-Sp' was found in the project." +
+                        "The existing Ref Sp family and it's supporting elements have been deleted, and the new Ref Sp family has been loaded." +
+                        "Please place an instance of 'LD_GR_Kitchen_Ref-Sp' in the project and re-run the command.");
+                    return Result.Succeeded;
+                }
             }
+
+            #endregion
 
             // if found, proceed with the rest of code
             else
             {
                 // execute the rest of the code
 
-            }
-
-            #endregion
+            }            
 
             #region Form
 
@@ -430,6 +447,15 @@ namespace ConvertSpecLevel
                 LocationPoint refSpLocation = curRefSp.Location as LocationPoint;
                 XYZ refSpPoint = refSpLocation.Point;
 
+                // Get the room and ceiling height for this fridge
+                Room fridgeRoom = curDoc.GetRoomAtPoint(refSpPoint);
+                double roomCeilingHeight = 0.0;
+                if (fridgeRoom != null)
+                {
+                    Parameter ceilingHeightParam = fridgeRoom.get_Parameter(BuiltInParameter.ROOM_HEIGHT);
+                    roomCeilingHeight = ceilingHeightParam?.AsDouble() ?? 0.0;
+                }
+
                 // perform proximity search for electrical outlet
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
@@ -453,7 +479,7 @@ namespace ConvertSpecLevel
 
                         // Check if within 19.5" radius and 2' height
                         return horizontalDistance <= (19.5 / 12.0) &&  // Convert inches to feet
-                        verticalDistance <= 2.0;                 // 2 feet height tolerance
+                        verticalDistance <= 4.0;                 // 4 feet height tolerance
                     })
                     .ToList();
 
@@ -490,17 +516,36 @@ namespace ConvertSpecLevel
                 // Add found CW connection to deletion list
                 elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
 
+                // Search for wall cabinets above this fridge
+                var wallCabinetsAbove = new FilteredElementCollector(curDoc)
+                    .OfCategory(BuiltInCategory.OST_Casework)  // Wall cabinets
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(cabinet =>
+                    {
+                        LocationPoint cabinetLoc = cabinet.Location as LocationPoint;
+                        if (cabinetLoc == null) return false;
 
+                        XYZ cabinetPoint = cabinetLoc.Point;
 
+                        // Same horizontal distance check
+                        double horizontalDistance = Math.Sqrt(
+                            Math.Pow(refSpPoint.X - cabinetPoint.X, 2) +
+                            Math.Pow(refSpPoint.Y - cabinetPoint.Y, 2));
 
+                        // Different vertical logic - cabinet must be ABOVE fridge
+                        bool isAbove = cabinetPoint.Z > refSpPoint.Z;
+                        bool withinCeilingHeight = cabinetPoint.Z <= (refSpPoint.Z + roomCeilingHeight); // Adjust ceiling height as needed
 
+                        return horizontalDistance <= (19.5 / 12.0) && isAbove && withinCeilingHeight;
+                    })
+                    .ToList();
 
-
-
+                // Add found wall cabinet to deletion list
+                elementsToDelete.AddRange(wallCabinetsAbove.Select(cw => cw.Id));
             }
 
-
-            throw new NotImplementedException();
+            return elementsToDelete;
         }
 
         #region Finish Floor Methods
