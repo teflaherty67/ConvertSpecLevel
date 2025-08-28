@@ -632,6 +632,15 @@ namespace ConvertSpecLevel.Common
             }
         }
 
+        internal static bool IsFamilyInstancePresent(Document curDoc, string familyName)
+        {
+            return new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_GenericModel)
+                .Cast<FamilyInstance>()
+                .Any(fi => fi.Symbol.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase));
+        }        
+
         #endregion
     }
 }

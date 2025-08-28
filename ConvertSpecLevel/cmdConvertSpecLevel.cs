@@ -18,19 +18,31 @@ namespace ConvertSpecLevel
 
             #region Check for Ref Sp family
 
-            // check for existence of new Ref Sp fmaily
-
-            // if found, proceed with the rest of code
+            // check for instance of new Ref Sp family
+            bool isNewRefSpPresent = Utils.IsFamilyInstancePresent(curDoc, "LD_GR_Kitchen_Ref-Sp");
 
             // if not found, delete any existing Ref Sp, CW, outlet, & wall cabinet
+            if (!isNewRefSpPresent)
+            {
+                // get the exisitng Ref Sp instance & supporting elements to delete
+                List<ElementId> elementsToDelete = GetElementsToDelete(curDoc);
 
-            // get all specialty equipment families & filter for Ref Sp
+                // delete the elements
 
-            // use proximity filter to find CW connection, electircal outlet, & any wall cabinet in Ref Sp
+                // load the new Ref Sp family into the project
 
-            // delete all found elements
+                // notify the user
 
-            // notify the user to place the new Ref Sp family & re-run the command
+                Utils.TaskDialogError("Error", "Spec Conversion", "No instance of the 'LD_GR_Kitchen_Ref-Sp' family found in the project. Please place it in the kitchen and re-run the command.");
+                return Result.Failed;
+            }
+
+            // if found, proceed with the rest of code
+            else
+            {
+                // execute the rest of the code
+
+            }
 
             #endregion
 
@@ -386,7 +398,110 @@ namespace ConvertSpecLevel
             #endregion
 
             return Result.Succeeded;
-        }       
+        }
+
+        private List<ElementId> GetElementsToDelete(Document curDoc)
+        {
+            List<ElementId> elementsToDelete = new List<ElementId>();
+
+            // Find existing Ref Sp instances directly
+            var existingRefSp = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_SpecialityEquipment)
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.Family.Name.Contains("Refrigerator") || fi.Symbol.Family.Name.Contains("Refrigeration"))
+                .ToList();
+
+            // if none found...
+            if (existingRefSp.Count == 0)
+            {
+                // ... notify the user
+                Utils.TaskDialogWarning("Warning", "Spec Conversion", "No existing refrigerator found in the project.");
+                return new List<ElementId>();
+            }
+
+            // loop through found Ref Sp instances & retunn their ElementId
+            foreach (FamilyInstance curRefSp in existingRefSp)
+            {
+                // current Ref Sp instance to list for deletion
+                elementsToDelete.Add(curRefSp.Id);
+
+                // Get fridge location once
+                LocationPoint refSpLocation = curRefSp.Location as LocationPoint;
+                XYZ refSpPoint = refSpLocation.Point;
+
+                // perform proximity search for electrical outlet
+                var nearbyOutlets = new FilteredElementCollector(curDoc)
+                    .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(outlet =>
+                    {
+                        // Get outlet location
+                        LocationPoint outletLoc = outlet.Location as LocationPoint;
+                        if (outletLoc == null) return false;
+
+                        XYZ outletPoint = outletLoc.Point;
+
+                        // Calculate 2D distance (ignore Z for radius check)
+                        double horizontalDistance = Math.Sqrt(
+                            Math.Pow(refSpPoint.X - outletPoint.X, 2) +
+                            Math.Pow(refSpPoint.Y - outletPoint.Y, 2));
+
+                        // Calculate vertical distance  
+                        double verticalDistance = Math.Abs(refSpPoint.Z - outletPoint.Z);
+
+                        // Check if within 19.5" radius and 2' height
+                        return horizontalDistance <= (19.5 / 12.0) &&  // Convert inches to feet
+                        verticalDistance <= 2.0;                 // 2 feet height tolerance
+                    })
+                    .ToList();
+
+                // Add found outlets to deletion list
+                elementsToDelete.AddRange(nearbyOutlets.Select(o => o.Id));
+
+                // perform proximity search for CW connections
+                var nearbyCWConnections = new FilteredElementCollector(curDoc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(connection =>
+                    {
+                        // Get CW location
+                        LocationPoint connectionCWLoc = connection.Location as LocationPoint;
+                        if (connectionCWLoc == null) return false;
+
+                        XYZ connectionPoint = connectionCWLoc.Point;
+
+                        // Calculate 2D distance (ignore Z for radius check)
+                        double horizontalDistance = Math.Sqrt(
+                            Math.Pow(refSpPoint.X - connectionPoint.X, 2) +
+                            Math.Pow(refSpPoint.Y - connectionPoint.Y, 2));
+
+                        // Calculate vertical distance  
+                        double verticalDistance = Math.Abs(refSpPoint.Z - connectionPoint.Z);
+
+                        // Check if within 19.5" radius and 2' height
+                        return horizontalDistance <= (19.5 / 12.0) &&  // Convert inches to feet
+                        verticalDistance <= 2.0;                 // 2 feet height tolerance
+                    })
+                    .ToList();
+
+                // Add found CW connection to deletion list
+                elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
+
+
+
+
+
+
+
+
+            }
+
+
+            throw new NotImplementedException();
+        }
 
         #region Finish Floor Methods
 
