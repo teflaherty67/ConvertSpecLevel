@@ -1,322 +1,204 @@
 ﻿using Autodesk.Revit.DB.Structure;
 using ConvertSpecLevel.Classes;
 using ConvertSpecLevel.Common;
-using System.IO.Packaging;
-using static ConvertSpecLevel.cmdRefSp;
 
 namespace ConvertSpecLevel
 {
     [Transaction(TransactionMode.Manual)]
     public class cmdSprinkler : IExternalCommand
     {
+        const double OFFSET_INCHES = 60.0;       // Outlet offset from garage wall
+        const double HEIGHT_INCHES = 18.0;       // Outlet AFF
+        const double DIM_LINE_OFFSET_FEET = 2.0; // Offset of dimension line itself
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            // Revit application and document variables
             UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document curDoc = uidoc.Document;
+            Document doc = uidoc.Document;
 
-            // automatically switch to a First Floor Electrical Plan view if not already in one
-            View firstFloorElecPlan = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor")
-                .FirstOrDefault();
-
-            // null check
-            if (firstFloorElecPlan != null)
+            View planView = Utils.GetAllViewsByNameContainsAndAssociatedLevel(doc, "Electrical", "First Floor").FirstOrDefault();
+            if (planView == null)
             {
-                // set the active view to the first floor electrical plan
-                uidoc.ActiveView = firstFloorElecPlan;
-            }
-            else
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "No first floor electrical views found in the project.");
+                Utils.TaskDialogError("Error", "Sprinkler Outlet", "No First Floor electrical plan found.");
                 return Result.Failed;
             }
 
-            // prompt the user to select the wall for the sprinkler outlet
-            Reference selectedOutletWall = uidoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select wall for sprinkler outlet.");
+            uidoc.ActiveView = planView;
 
-            // cast the selected element to a Wall
-            Wall outletWall = curDoc.GetElement(selectedOutletWall.ElementId) as Wall;
+            Wall outletWall = SelectWall(uidoc, "Select wall to host sprinkler outlet.");
+            if (outletWall == null) return Result.Cancelled;
 
-            // verify the selected element is a wall
-            if (outletWall == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
-                return Result.Failed;
-            }
+            Wall garageWall = SelectWall(uidoc, "Select garage (perpendicular) wall.");
+            if (garageWall == null) return Result.Cancelled;
 
-            // prompt user to select the front wall of the garage
-            Reference selectedGarageWall = uidoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select front wall of Garage.");
-
-            // cast the selected element to a Wall
-            Wall garageWall = curDoc.GetElement(selectedGarageWall.ElementId) as Wall;
-
-            // verify the selected element is a wall
-            if (garageWall == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
-                return Result.Failed;
-            }
-
-            // start a transaction
-            using (Transaction t = new Transaction(curDoc, "Sprinkler Outlet"))
+            using (Transaction t = new Transaction(doc, "Place Sprinkler Outlet"))
             {
                 t.Start();
 
-                // check if family is loaded
-                FamilySymbol outletSprinkler = Utils.GetFamilySymbolByName(curDoc, "LD_EF_Recep_Wall", "Sprinkler");
-
-                // null check
-                if (outletSprinkler == null)
+                // Load and activate the sprinkler family symbol
+                FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_Wall", "Sprinkler");
+                if (sprinklerSymbol == null)
                 {
-                    // load the family
-                    Family outletFam = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
-
-                    // Check if the receptacle family loaded successfully
-                    if (outletFam == null)
-                    {
-                        // Show error message if receptacle family failed to load
-                        Utils.TaskDialogError("Error", "Spec Conversion", "Could not load receptacle family from library.");
-                        return Result.Failed;
-                    }
-
-                    // try to get the family symbol again
-                    outletSprinkler = Utils.GetFamilySymbolByName(curDoc, "LD_EF_Recep_Wall", "Sprinkler");
-
-                    // Check if the receptacle type was found
-                    if (outletSprinkler == null)
-                    {
-                        // Show error message if receptacle type not found
-                        Utils.TaskDialogError("Error", "Spec Conversion", "Could not find receptacle type in the project after loading family.");
-                        return Result.Failed;
-                    }
+                    Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
+                    sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_Wall", "Sprinkler");
                 }
 
-                // activate family symbol if needed
-                if (outletSprinkler != null && !outletSprinkler.IsActive)
+                if (sprinklerSymbol == null)
                 {
-                    outletSprinkler.Activate();
-                    curDoc.Regenerate();
-                }
-
-                // Create options for geometry extraction - controls how detailed the geometry will be
-                Options geometryOptions = new Options();
-
-                // Get the wall's 3D geometry as a collection of solids and surfaces
-                GeometryElement wallGeometry = garageWall.get_Geometry(geometryOptions);
-
-                // Variables to store our target point when found
-                XYZ targetPoint = null;
-                bool foundTargetPoint = false;
-
-                // Loop through the geometry to find the solid objects (the actual wall layers)
-                foreach (GeometryObject geomObj in wallGeometry)
-                {
-                    // Check if this geometry object is a solid with volume and not null
-                    if (geomObj is Solid solid && solid != null && solid.Volume > 0)
-                    {
-                        // Get the material of this solid to identify if it's the stud layer
-                        ElementId materialId = solid.MaterialElementID;
-                        if (materialId != null && materialId != ElementId.InvalidElementId)
-                        {
-                            // Get the material element to check its name
-                            Material material = curDoc.GetElement(materialId) as Material;
-                            if (material != null && material.Name.Contains("Wood Stud"))
-                            {
-                                // Loop through all faces of this solid to find the structural core face
-                                foreach (Face face in solid.Faces)
-                                {
-                                    // Get the face normal vector (direction perpendicular to the face)
-                                    XYZ faceNormal = face.ComputeNormal(new UV(0.5, 0.5));
-
-                                    // Check if this face is vertical (Z component near 0)
-                                    if (Math.Abs(faceNormal.Z) < 0.1)
-                                    {
-                                        // Get a point on the face to use for calculations
-                                        XYZ pointOnFace = face.Evaluate(new UV(0.5, 0.5));
-
-                                        // Check if this is the outside face by comparing with wall location line
-                                        LocationCurve wallLocationCurve = garageWall.Location as LocationCurve;
-
-                                        // Get the centerline of the wall
-                                        Line wallCenterLine = wallLocationCurve.Curve as Line;
-
-                                        // Get the closest point on the wall centerline to our face point
-                                        XYZ closestPointOnCenterline = wallCenterLine.Project(pointOnFace).XYZPoint;
-
-                                        // Calculate vector from centerline to face point
-                                        XYZ centerToFace = pointOnFace - closestPointOnCenterline;
-
-                                        // Check if this face is pointing away from the building interior (outside face)
-                                        if (centerToFace.DotProduct(faceNormal) > 0)
-                                        {
-                                            // This is the outside face - calculate target point 60" perpendicular from this face
-                                            targetPoint = pointOnFace + (faceNormal * 5.0);
-                                            foundTargetPoint = true;
-                                            break; // Exit face loop - we found our outside face
-                                        }
-                                    }
-                                }
-
-                                if (foundTargetPoint)
-                                    break; // Exit geometry loop - we found our target point
-                            }
-                        }
-                    }
-                }
-
-                // Check if we successfully found our target point
-                if (!foundTargetPoint || targetPoint == null)
-                {
-                    Utils.TaskDialogError("Error", "Spec Conversion", "Could not find the outside face of the garage stud wall.");
+                    Utils.TaskDialogError("Error", "Sprinkler Outlet", "Unable to load sprinkler family.");
                     return Result.Failed;
                 }
 
-                // Get the outlet wall's geometry to find where to place the outlet
-                GeometryElement outletWallGeometry = outletWall.get_Geometry(geometryOptions);
+                if (!sprinklerSymbol.IsActive) sprinklerSymbol.Activate();
+                doc.Regenerate();
 
-                // Variables to store the outlet placement point
-                XYZ outletPlacementPoint = null;
-                bool foundOutletFace = false;
-
-                // Loop through the outlet wall geometry to find the GWB layer
-                foreach (GeometryObject outletGeomObj in outletWallGeometry)
+                // 1. Get garage wall exterior face point
+                XYZ facePoint = GetWallExteriorStructuralFace(garageWall);
+                if (facePoint == null)
                 {
-                    // Check if this geometry object is a solid with volume and not null
-                    if (outletGeomObj is Solid outletSolid && outletSolid != null && outletSolid.Volume > 0)
-                    {
-                        // Get the material of this solid to identify if it's the GWB layer
-                        ElementId outletMaterialId = outletSolid.GraphicsStyleId;
+                    Utils.TaskDialogError("Error", "Sprinkler Outlet", "Could not determine garage wall exterior structural face.");
+                    return Result.Failed;
+                }
 
-                        if (outletMaterialId != null && outletMaterialId != ElementId.InvalidElementId)
-                        {
-                            // Get the material element to check its name for GWB
-                            Material outletMaterial = curDoc.GetElement(outletMaterialId) as Material;
-                            if (outletMaterial != null && outletMaterial.Name.Contains("GWB"))
-                            {
-                                // Loop through all faces of the GWB solid to find the inside face
-                                foreach (Face outletFace in outletSolid.Faces)
-                                {
-                                    // Get the face normal vector (direction perpendicular to the face)
-                                    XYZ outletFaceNormal = outletFace.ComputeNormal(new UV(0.5, 0.5));
+                // 2. Compute 60" offset in direction of garage wall's orientation (which points OUT)
+                double offsetFeet = UnitUtils.ConvertToInternalUnits(OFFSET_INCHES, UnitTypeId.Inches);
+                XYZ garageToOutletDir = -garageWall.Orientation; // Going inward from garage face
+                XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
 
-                                    // Check if this face is vertical (Z component near 0)
-                                    if (Math.Abs(outletFaceNormal.Z) < 0.1)
-                                    {
-                                        // Project our target point onto this face to see if it intersects
-                                        IntersectionResult intersection = outletFace.Project(targetPoint);
-                                        if (intersection != null)
-                                        {
-                                            // Get the intersection point - this is where the outlet will be placed
-                                            outletPlacementPoint = intersection.XYZPoint;
-                                            foundOutletFace = true;
-                                            break; // Exit face loop - we found our intersection
-                                        }
+                // 3. Final outlet point at 18" AFF
+                double height = UnitUtils.ConvertToInternalUnits(HEIGHT_INCHES, UnitTypeId.Inches);
+                XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, height);
 
-                                    }
-                                }
+                // 4. Place the outlet
+                FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletWall, StructuralType.NonStructural);
 
-                                if (foundOutletFace)
-                                {
-                                    break; // Exit geometry loop - we found our outlet face
-                                }
-                            }
-                        }
+                // 5. Get face references
+                Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
+                Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
 
-                        // Check if we successfully found our outlet placement point
-                        if (!foundOutletFace || outletPlacementPoint == null)
-                        {
-                            Utils.TaskDialogError("Error", "Spec Conversion", "Could not find intersection point on the outlet wall.");
-                            return Result.Failed;
-                        }
+                // 6. Create dimension if both references exist
+                if (garageFaceRef != null && outletCenterRef != null)
+                {
+                    ReferenceArray dimRefs = new ReferenceArray();
+                    dimRefs.Append(garageFaceRef);
+                    dimRefs.Append(outletCenterRef);
 
-                        // Place the sprinkler outlet at the calculated intersection point
-                        FamilyInstance sprinklerOutlet = curDoc.Create.NewFamilyInstance(outletPlacementPoint, outletSprinkler, outletWall, StructuralType.NonStructural);
+                    // Direction perpendicular to the outlet wall (i.e., facing OUTSIDE)
+                    XYZ outletWallNormal = outletWall.Orientation; // Revit defines this as exterior direction
 
-                        // Check if the outlet was placed successfully
-                        if (sprinklerOutlet == null)
-                        {
-                            Utils.TaskDialogError("Error", "Spec Conversion", "Failed to place sprinkler outlet.");
-                            return Result.Failed;
-                        }
+                    // Offset dimension line in that direction
+                    XYZ dimOffset = outletWallNormal * DIM_LINE_OFFSET_FEET;
 
-                        // Create dimension from garage wall face to outlet center
-                        // First, get references for dimensioning - garage wall face and outlet center
-                        Reference refGarageWall = new Reference(garageWall);
+                    // Flatten to plan view (Z = 0)
+                    XYZ p1 = new XYZ((facePoint + dimOffset).X, (facePoint + dimOffset).Y, 0);
+                    XYZ p2 = new XYZ((outletPoint + dimOffset).X, (outletPoint + dimOffset).Y, 0);
+                    Line dimLine = Line.CreateBound(p1, p2);
 
-                        // Get reference to the outlet's 'Center (Left/Right)' reference point
-                        Reference refOutlet = null;
-                        foreach (Reference familyRef in sprinklerOutlet.GetReferences(FamilyInstanceReferenceType.CenterLeftRight))
-                        {
-                            refOutlet = familyRef;
-                            break; // Take the first (and likely only) Center (Left/Right) reference
-                        }
+                    doc.Create.NewDimension(planView, dimLine, dimRefs);
+                }
 
-                        // Check if we found the outlet reference
-                        if (refOutlet == null)
-                        {
-                            Utils.TaskDialogError("Error", "Spec Conversion", "Could not find outlet center reference for dimensioning.");
-                            return Result.Failed;
-                        }
+                // 7. Place tag
 
-                        // Create a reference array for the dimension (from garage wall to outlet)
-                        ReferenceArray dimReferenceArray = new ReferenceArray();
-                        dimReferenceArray.Append(refGarageWall);
-                        dimReferenceArray.Append(refOutlet);
+                // Tag expects a Reference to the instance itself when using TagMode.TM_ADDBY_CATEGORY
+                Reference tagRef = new Reference(outletInstance);
 
-                        // Create a line to define where the dimension will be placed (2' from outlet wall exterior)
-                        XYZ dimensionOffset = (outletPlacementPoint - targetPoint).Normalize() * 2.0; // 2 feet perpendicular to outlet wall
-                        XYZ dimStartPoint = targetPoint + dimensionOffset;
-                        XYZ dimEndPoint = outletPlacementPoint + dimensionOffset;
-                        Line dimensionLine = Line.CreateBound(dimStartPoint, dimEndPoint);
+                // Offset direction: move tag away from outlet wall face (using wall orientation)
+                XYZ tagDirection = outletWall.Orientation; // This points toward the exterior of the outlet wall
+                XYZ tagOffset = tagDirection * 2.0 + new XYZ(0, 0, 2.0); // 2 ft away, lifted slightly in Z
+                XYZ tagPosition = outletPoint + tagOffset;
 
-                        // Create the dimension
-                        Dimension sprinklerDimension = curDoc.Create.NewDimension(curDoc.ActiveView, dimensionLine, dimReferenceArray);
+                IndependentTag tag = IndependentTag.Create(doc, planView.Id,
+                    tagRef,
+                    true,
+                    TagMode.TM_ADDBY_CATEGORY,
+                    TagOrientation.Horizontal,
+                    tagPosition);
 
-                        // Create a tag for the sprinkler outlet with leader
-                        // Determine outlet wall orientation and calculate tag position accordingly
-                        LocationCurve outletWallLocation = outletWall.Location as LocationCurve;
-                        Line outletWallLine = outletWallLocation.Curve as Line;
-                        XYZ wallDirection = outletWallLine.Direction;
-
-                        // Check if wall is more horizontal or vertical by comparing X and Y components
-                        bool isHorizontalWall = Math.Abs(wallDirection.X) > Math.Abs(wallDirection.Y);
-
-                        XYZ tagPosition;
-                        if (isHorizontalWall)
-                        {
-                            // Horizontal wall: 2' left and 2' up
-                            tagPosition = outletPlacementPoint + new XYZ(-2.0, 0, 2.0);
-                        }
-                        else
-                        {
-                            // Vertical wall: 2' right and 2' up  
-                            tagPosition = outletPlacementPoint + new XYZ(2.0, 0, 2.0);
-                        }
-
-                        // Create the tag for the sprinkler outlet
-                        IndependentTag sprinklerTag = IndependentTag.Create(curDoc, curDoc.ActiveView.Id, new Reference(sprinklerOutlet), true, TagMode.TM_ADDBY_CATEGORY, TagOrientation.Horizontal, tagPosition);
-
-                        // Set the leader to free end
-                        sprinklerTag.LeaderEndCondition = LeaderEndCondition.Free;
-
-                        // Success - sprinkler outlet added successfully
-                        Utils.TaskDialogInformation("Complete", "Spec Conversion", "Sprinkler outlet added successfully.");
-                    }
+                if (tag != null)
+                {
+                    tag.LeaderEndCondition = LeaderEndCondition.Free;
                 }
 
                 t.Commit();
             }
 
+            Utils.TaskDialogInformation("Complete", "Sprinkler Outlet", "Sprinkler outlet placed successfully.");
             return Result.Succeeded;
+        }
 
+        private Wall SelectWall(UIDocument uidoc, string prompt)
+        {
+            try
+            {
+                Reference picked = uidoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), prompt);
+                return uidoc.Document.GetElement(picked.ElementId) as Wall;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private XYZ GetWallExteriorStructuralFace(Wall wall)
+        {
+            WallType wallType = wall.Document.GetElement(wall.GetTypeId()) as WallType;
+            CompoundStructure structure = wallType?.GetCompoundStructure();
+            if (structure == null) return null;
+
+            bool hasStructure = structure.GetLayers().Any(l => l.Function == MaterialFunctionAssignment.Structure);
+            if (!hasStructure) return null;
+
+            Options opts = new Options { ComputeReferences = false };
+            GeometryElement geom = wall.get_Geometry(opts);
+            XYZ orientation = wall.Orientation;
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+                        if (Math.Abs(normal.Z) < 0.01 && normal.DotProduct(orientation) > 0.5)
+                        {
+                            return face.Evaluate(new UV(0.5, 0.5));
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private Reference GetWallExteriorFaceReference(Wall wall)
+        {
+            Options opts = new Options { ComputeReferences = true };
+            GeometryElement geom = wall.get_Geometry(opts);
+            XYZ orientation = wall.Orientation;
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+                        if (Math.Abs(normal.Z) < 0.01 && normal.DotProduct(orientation) > 0.5)
+                        {
+                            return face.Reference;
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         internal static PushButtonData GetButtonData()
         {
-            // use this method to define the properties for this command in the Revit ribbon
-            string buttonInternalName = "btnCommand1";
-            string buttonTitle = "Button 1";
+            string buttonInternalName = "btnSprinkler";
+            string buttonTitle = "Sprinkler Outlet";
 
             clsButtonData myButtonData = new clsButtonData(
                 buttonInternalName,
@@ -324,12 +206,23 @@ namespace ConvertSpecLevel
                 MethodBase.GetCurrentMethod().DeclaringType?.FullName,
                 Properties.Resources.Blue_32,
                 Properties.Resources.Blue_16,
-                "This is a tooltip for Button 1");
+                "Place sprinkler outlet with dimensioning and tagging");
 
             return myButtonData.Data;
         }
     }
+
+    // Wall selection filter class
+    internal class WallSelectionFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            return elem is Wall; // Allows only Wall elements to be selected
+        }
+
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            return false;
+        }
+    }
 }
-
-
-
