@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConvertSpecLevel"
         mc:Ignorable="d"
-        Title="Convert Spec Level" Height="200" Width="320"
+        Title="Convert Spec Level" Height="220" Width="320"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False">    
@@ -16,7 +16,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="35"/>
             <RowDefinition Height="55"/>
-            <RowDefinition Height="*"/>            
+            <RowDefinition Height="10"/>            
             <RowDefinition Height="35"/>
             <RowDefinition Height="10"/>
             <RowDefinition Height="35"/>
