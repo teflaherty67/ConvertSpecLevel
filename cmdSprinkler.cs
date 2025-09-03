@@ -37,11 +37,11 @@ namespace ConvertSpecLevel
                 t.Start();
 
                 // Load and activate the sprinkler family symbol
-                FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_Wall", "Sprinkler");
+                FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
                 if (sprinklerSymbol == null)
                 {
-                    Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
-                    sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_Wall", "Sprinkler");
+                    Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_None");
+                    sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
                 }
 
                 if (sprinklerSymbol == null)
@@ -71,7 +71,8 @@ namespace ConvertSpecLevel
                 XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, height);
 
                 // 4. Place the outlet
-                FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletWall, StructuralType.NonStructural);
+                Level level = doc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
+                FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, level, StructuralType.NonStructural);
 
                 // 5. Get face references
                 Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
