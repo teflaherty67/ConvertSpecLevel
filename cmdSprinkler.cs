@@ -37,11 +37,11 @@ namespace ConvertSpecLevel
                 t.Start();
 
                 // Load and activate the sprinkler family symbol
-                FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_Wall", "Sprinkler");
+                FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
                 if (sprinklerSymbol == null)
                 {
-                    Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
-                    sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_Wall", "Sprinkler");
+                    Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_None");
+                    sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
                 }
 
                 if (sprinklerSymbol == null)

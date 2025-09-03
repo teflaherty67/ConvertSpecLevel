@@ -512,6 +512,16 @@ namespace ConvertSpecLevel
                     roomCeilingHeight = ceilingHeightParam?.AsDouble() ?? 0.0;
                 }
 
+                // Define small rectangular search area for outlets and CW connections
+                double halfWidth = 1.5;   // 18" each side = 16" total width  
+                double halfDepth = 1.5;   // 18" each side = 16" total depth
+
+                // Create boundaries around fridge center
+                double minX = refSpPoint.X - halfWidth;
+                double maxX = refSpPoint.X + halfWidth;
+                double minY = refSpPoint.Y - halfDepth;
+                double maxY = refSpPoint.Y + halfDepth;
+
                 // perform proximity search for electrical outlet
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
@@ -525,17 +535,13 @@ namespace ConvertSpecLevel
 
                         XYZ outletPoint = outletLoc.Point;
 
-                        // Calculate 2D distance (ignore Z for radius check)
-                        double horizontalDistance = Math.Sqrt(
-                            Math.Pow(refSpPoint.X - outletPoint.X, 2) +
-                            Math.Pow(refSpPoint.Y - outletPoint.Y, 2));
-
                         // Calculate vertical distance  
                         double verticalDistance = Math.Abs(refSpPoint.Z - outletPoint.Z);
 
-                        // Check if within 19.5" radius and 2' height
-                        return horizontalDistance <= (19.5 / 12.0) &&  // Convert inches to feet
-                        verticalDistance <= 4.0;                 // 4 feet height tolerance
+                        // Check if outlet is within rectangular boundaries and height tolerance
+                        return outletPoint.X >= minX && outletPoint.X <= maxX &&
+                               outletPoint.Y >= minY && outletPoint.Y <= maxY &&
+                               verticalDistance <= 4.0;
                     })
                     .ToList();
 
@@ -555,26 +561,22 @@ namespace ConvertSpecLevel
 
                         XYZ connectionPoint = connectionCWLoc.Point;
 
-                        // Calculate 2D distance (ignore Z for radius check)
-                        double horizontalDistance = Math.Sqrt(
-                            Math.Pow(refSpPoint.X - connectionPoint.X, 2) +
-                            Math.Pow(refSpPoint.Y - connectionPoint.Y, 2));
-
                         // Calculate vertical distance  
                         double verticalDistance = Math.Abs(refSpPoint.Z - connectionPoint.Z);
 
-                        // Check if within 19.5" radius and 2' height
-                        return horizontalDistance <= (19.5 / 12.0) &&  // Convert inches to feet
-                        verticalDistance <= 2.0;                 // 2 feet height tolerance
+                        // Check if CW connection is within rectangular boundaries and height tolerance  
+                        return connectionPoint.X >= minX && connectionPoint.X <= maxX &&
+                               connectionPoint.Y >= minY && connectionPoint.Y <= maxY &&
+                               verticalDistance <= 2.0;
                     })
                     .ToList();
 
-                // Add found CW connection to deletion list
+                // add found CW connection to deletion list
                 elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
 
-                // Search for wall cabinets above this fridge
+                // proximity search for Ref Sp wall cabinet
                 var wallCabinetsAbove = new FilteredElementCollector(curDoc)
-                    .OfCategory(BuiltInCategory.OST_Casework)  // Wall cabinets
+                    .OfCategory(BuiltInCategory.OST_Casework)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .Where(cabinet =>
@@ -587,22 +589,36 @@ namespace ConvertSpecLevel
 
                         XYZ cabinetPoint = cabinetLoc.Point;
 
-                        // Check height range first (keep the vertical checks)
-                        if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > (refSpPoint.Z + roomCeilingHeight))
+                        // Check height range - cabinet bottom between 6' and 6'-6"
+                        if (cabinetPoint.Z < 6.0 || cabinetPoint.Z > 6.5)
                             return false;
 
-                        // Get cabinet bounding box for horizontal check
+                        // Get cabinet bounding box with slightly larger tolerance
                         BoundingBoxXYZ cabinetBounds = cabinet.get_BoundingBox(null);
                         if (cabinetBounds == null) return false;
 
-                        // Check if fridge center point falls within cabinet's footprint
-                        return refSpPoint.X >= cabinetBounds.Min.X && refSpPoint.X <= cabinetBounds.Max.X &&
-                               refSpPoint.Y >= cabinetBounds.Min.Y && refSpPoint.Y <= cabinetBounds.Max.Y;
+                        // Expand search area slightly (20.5" instead of 19.5")
+                        double tolerance = 20.5 / 12.0; // Convert to feet
+                        bool withinX = Math.Abs(cabinetPoint.X - refSpPoint.X) <= tolerance;
+                        bool withinY = Math.Abs(cabinetPoint.Y - refSpPoint.Y) <= tolerance;
+
+                        if (!withinX || !withinY) return false;
+
+                        // Filter by Offset from Level parameter (target specific mounting height)
+                        Parameter offsetParam = cabinet.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
+                        if (offsetParam != null)
+                        {
+                            double offsetFromLevel = offsetParam.AsDouble();
+                            // Look for cabinets mounted at typical fridge cabinet height (6'-0" to 6'-6")
+                            return offsetFromLevel >= 6.0 && offsetFromLevel <= 6.5;
+                        }
+
+                        return false;
                     })
                     .ToList();
 
-                // Add found wall cabinet to deletion list
-                elementsToDelete.AddRange(wallCabinetsAbove.Select(cw => cw.Id));
+                // add found wall cabinet to deletion list
+                elementsToDelete.AddRange(wallCabinetsAbove.Select(cab => cab.Id));
             }
 
             return elementsToDelete;
