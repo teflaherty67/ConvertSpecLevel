@@ -79,8 +79,7 @@ namespace ConvertSpecLevel
 
             // get user input from form
             string selectedClient = curForm.GetSelectedClient();
-            string selectedSpecLevel = curForm.GetSelectedSpecLevel();
-            string selectedMWCabHeight = curForm.GetSelectedMWCabHeight();
+            string selectedSpecLevel = curForm.GetSelectedSpecLevel();            
 
             #endregion
 
@@ -215,21 +214,30 @@ namespace ConvertSpecLevel
                         ManageCaseworkTags(curDoc, selectedSpecLevel);
                     }
 
+                    // get MW cabinet height from cabinet spec map
+                    string mwHeight = clsCabSpecMap.GetMWCabHeight(selectedClient, selectedSpecLevel);
+                    if (mwHeight == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"No MW cabinet height found for {selectedClient} - {selectedSpecLevel}");
+                        return Result.Failed;
+                    }
+
                     // revise the MW cabinet
-                    ReplaceMWCabinet(curDoc, selectedMWCabHeight);                    
+                    ReplaceMWCabinet(curDoc, mwHeight);
+
+                    // get Ref Sp settings from the cabinet spec map
+                    var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
+                    if (refSpSettings == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
+                        return Result.Failed;
+                    }
+
+                    // apply the Ref Sp settings
+                    ManageRefSpCabinet(curDoc, refSpSettings);
 
                     // raise/lower the backsplash height
                     UpdateBacksplash(curDoc, selectedSpecLevel);
-
-                    //// add/remove the Ref Sp cabinet
-                    //if (selectedSpecLevel == "Complete Home" && selectedCabinet != null)
-                    //{
-                    //    curDoc.Delete(((Element)selectedCabinet).Id);
-                    //}
-                    //else
-                    //{
-                    //    AddRefSpCabinet(curDoc, uidoc, selectedRefSpWall, selectedRefSp);
-                    //}
 
                     // commit the transaction
                     t.Commit();
@@ -415,6 +423,54 @@ namespace ConvertSpecLevel
             #endregion
 
             return Result.Succeeded;
+        }
+
+        private void ManageRefSpCabinet(Document curDoc, clsCabSpecMap.RefSpSettings refSpSettings)
+        {
+            // find existing Ref Sp instances
+            var instanceRefSp = new FilteredElementCollector (curDoc)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_GenericModel)
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.Family.Name.Contains("LD_GR_Kitchen_Ref-Sp"))
+                .ToList();
+
+            bool isVisible = refSpSettings.IsVisible;
+            string typeName = refSpSettings.TypeName;
+            double heightOffset = refSpSettings.HeightOffsetFromLevel;
+
+            if (instanceRefSp.Count == 0)
+            {
+                Utils.TaskDialogWarning("Warning", "Spec Conversion", "No Ref Sp instances found in the project.");
+                return;
+            }
+
+            // if found apply settings
+            foreach (FamilyInstance curRefSp in instanceRefSp)
+            {
+                // apply cabinet visibility parameter
+                Parameter visibilityParam = curRefSp.LookupParameter("Ref Sp Cabinet");
+                if (visibilityParam != null)
+                {
+                    visibilityParam.Set(isVisible ? 1 : 0);  // 1 = visible, 0 = hidden
+                }
+
+                // apply cabinet type if visible
+                Parameter typeParam = curRefSp.LookupParameter("Cabinet");
+                if (typeParam != null && !string.IsNullOrEmpty(typeName))
+                {
+                    // Construct the full format: "FamilyName : TypeName"
+                    string fullCabinetValue = $"LD_CW_Wall_2-Dr_Flush : {typeName}";
+                    typeParam.Set(fullCabinetValue);
+                }
+
+                // apply height offset from level
+                Parameter heightParam = curRefSp.LookupParameter("Cabinet Offset AFF");
+                if (heightParam != null)
+                {
+                    heightParam.Set(heightOffset);
+                }
+            }
         }
 
         private List<ElementId> GetElementsToDelete(Document curDoc)
