@@ -579,21 +579,25 @@ namespace ConvertSpecLevel
                     .Cast<FamilyInstance>()
                     .Where(cabinet =>
                     {
+                        // Skip nested families (like knobs)
+                        if (cabinet.SuperComponent != null) return false;
+
                         LocationPoint cabinetLoc = cabinet.Location as LocationPoint;
                         if (cabinetLoc == null) return false;
 
                         XYZ cabinetPoint = cabinetLoc.Point;
 
-                        // Same horizontal distance check
-                        double horizontalDistance = Math.Sqrt(
-                            Math.Pow(refSpPoint.X - cabinetPoint.X, 2) +
-                            Math.Pow(refSpPoint.Y - cabinetPoint.Y, 2));
+                        // Check height range first (keep the vertical checks)
+                        if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > (refSpPoint.Z + roomCeilingHeight))
+                            return false;
 
-                        // Different vertical logic - cabinet must be ABOVE fridge
-                        bool isAbove = cabinetPoint.Z > refSpPoint.Z;
-                        bool withinCeilingHeight = cabinetPoint.Z <= (refSpPoint.Z + roomCeilingHeight); // Adjust ceiling height as needed
+                        // Get cabinet bounding box for horizontal check
+                        BoundingBoxXYZ cabinetBounds = cabinet.get_BoundingBox(null);
+                        if (cabinetBounds == null) return false;
 
-                        return horizontalDistance <= (19.5 / 12.0) && isAbove && withinCeilingHeight;
+                        // Check if fridge center point falls within cabinet's footprint
+                        return refSpPoint.X >= cabinetBounds.Min.X && refSpPoint.X <= cabinetBounds.Max.X &&
+                               refSpPoint.Y >= cabinetBounds.Min.Y && refSpPoint.Y <= cabinetBounds.Max.Y;
                     })
                     .ToList();
 
