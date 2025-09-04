@@ -26,7 +26,7 @@ namespace ConvertSpecLevel
         // properties for form return values
         public string SelectedClientName { get; private set; }
         public bool IsCompleteHomePlus { get; private set; }
-        public string SelectedMWCabHeight { get; private set; }
+       
 
 
         #region Constructors
@@ -67,20 +67,7 @@ namespace ConvertSpecLevel
 
             // Set the default selection to the first client in the list (Central Texas)
             if (cmbClient.Items.Count > 0)
-                cmbClient.SelectedIndex = 0;
-
-            // Create a list of MW cabinet heights
-            List<string> listMWCabinets = new List<string> { "18\"", "21\"", "24\"", "27\"", "30\"" };
-
-            // Add each height to the combobox
-            foreach (string height in listMWCabinets)
-            {
-                cmbMWCabHeight.Items.Add(height);
-            }
-
-            // Set the default selection to the first height in the list
-            if (cmbMWCabHeight.Items.Count > 0)
-                cmbMWCabHeight.SelectedIndex = 0;
+                cmbClient.SelectedIndex = 0;           
         }
 
         #endregion
@@ -102,12 +89,7 @@ namespace ConvertSpecLevel
             {
                 return rbCompleteHomePlus.Content.ToString();
             }
-        }
-
-        public string GetSelectedMWCabHeight()
-        {
-            return cmbMWCabHeight.SelectedItem as string;
-        }
+        }       
 
         #endregion
 

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConvertSpecLevel"
         mc:Ignorable="d"
-        Title="Convert Spec Level" Height="300" Width="320"
+        Title="Convert Spec Level" Height="220" Width="320"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False">    
@@ -16,9 +16,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="35"/>
             <RowDefinition Height="55"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="35"/>
-            <RowDefinition Height="35"/>
+            <RowDefinition Height="10"/>            
             <RowDefinition Height="35"/>
             <RowDefinition Height="10"/>
             <RowDefinition Height="35"/>
@@ -49,22 +47,11 @@
            GroupName="SpecLevel"
            Checked="SpecLevel_Changed"/>
             </StackPanel>
-        </StackPanel>
-
-        <!--MW Cabinet Height Section-->
-        <Grid Grid.Row="3" VerticalAlignment="Center">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="85"/>
-            </Grid.ColumnDefinitions>
-            <Label Grid.Column="0" Content="MW Cabinet Height:" Margin="0,0,10,0" VerticalAlignment="Center" />
-            <ComboBox Grid.Column="1" x:Name="cmbMWCabHeight" Height="25" Width="75" HorizontalAlignment="Left" />
-        </Grid>
+        </StackPanel>        
 
         <!--Dynamic Row 1-->
         
-        <!--Dynamic Row 2-->
-
+       
         <!--Buttons Section-->
         <StackPanel Grid.Row="7" 
            Orientation="Horizontal" 
