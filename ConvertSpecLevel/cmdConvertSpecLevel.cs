@@ -604,7 +604,7 @@ namespace ConvertSpecLevel
                         if (cabinetBounds == null) return false;
 
                         // Expand search area slightly (20.5" instead of 19.5")
-                        double tolerance = 21 / 12.0; // Convert to feet
+                        double tolerance = 20.5 / 12.0; // Convert to feet
                         bool withinX = Math.Abs(cabinetPoint.X - refSpPoint.X) <= tolerance;
                         bool withinY = Math.Abs(cabinetPoint.Y - refSpPoint.Y) <= tolerance;
 
