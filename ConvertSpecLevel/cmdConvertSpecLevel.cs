@@ -16,7 +16,7 @@ namespace ConvertSpecLevel
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document curDoc = uidoc.Document;
 
-            #region Check for Ref Sp family
+            #region Ref Sp cleanup
 
             // check for instance of new Ref Sp family
             bool isNewRefSpPresent = Utils.IsFamilyInstancePresent(curDoc, "LD_GR_Kitchen_Ref-Sp");
@@ -58,242 +58,318 @@ namespace ConvertSpecLevel
 
             // if found, proceed with the rest of code
             else
-            {
-                // execute the rest of the code
+            {                
+                #region Form
 
-            }            
+                // launch the form
+                frmConvertSpecLevel curForm = new frmConvertSpecLevel();
+                curForm.Topmost = true;
 
-            #region Form
+                curForm.ShowDialog();
 
-            // launch the form
-            frmConvertSpecLevel curForm = new frmConvertSpecLevel();
-            curForm.Topmost = true;
-
-            curForm.ShowDialog();
-
-            // check if user clicked Cancel
-            if (curForm.DialogResult != true)
-            {
-                return Result.Cancelled;
-            }
-
-            // get user input from form
-            string selectedClient = curForm.GetSelectedClient();
-            string selectedSpecLevel = curForm.GetSelectedSpecLevel();            
-
-            #endregion
-
-            #region Transaction Group
-
-            // create a transaction group
-            using (TransactionGroup transgroup = new TransactionGroup(curDoc, "Convert Spec Level"))
-            {
-                // start the transaction group
-                transgroup.Start();               
-
-                #region Floor Finish Updates
-
-                // get a first floor annotation view & set it as the active view
-                View curView = Utils.GetViewByNameContainsAndAssociatedLevel(curDoc, "Annotation", "First Floor");
-
-                // check for null
-                if (curView != null)
+                // check if user clicked Cancel
+                if (curForm.DialogResult != true)
                 {
-                    uidoc.ActiveView = curView;
-                }
-                else
-                {
-                    // if null notify the user
-                    Utils.TaskDialogWarning("Warning", "Spec Conversion", "No view found with name containing 'Annotation' and associated level 'First Floor'");
+                    return Result.Cancelled;
                 }
 
-                // create a transaction for the flooring update
-                using (Transaction t = new Transaction(curDoc, "Update Floor Finish"))
+                // get user input from form
+                string selectedClient = curForm.GetSelectedClient();
+                string selectedSpecLevel = curForm.GetSelectedSpecLevel();
+
+                #endregion
+
+                #region Transaction Group
+
+                // create a transaction group
+                using (TransactionGroup transgroup = new TransactionGroup(curDoc, "Convert Spec Level"))
                 {
-                    // start the first transaction
-                    t.Start();
+                    // start the transaction group
+                    transgroup.Start();
 
-                    // change the flooring for the specified rooms per the selected spec level
-                    List<string> listUpdatedRooms = UpdateFloorFinishInActiveView(curDoc, selectedSpecLevel);
+                    #region Floor Finish Updates
 
-                    // manage the floor material breaks
-                    ManageFloorMaterialBreaksInActiveView(curDoc, listUpdatedRooms);
+                    // get a first floor annotation view & set it as the active view
+                    View curView = Utils.GetViewByNameContainsAndAssociatedLevel(curDoc, "Annotation", "First Floor");
 
-                    // create a list of the rooms updated
-                    string listRooms;
-                    if (listUpdatedRooms.Count == 1)
+                    // check for null
+                    if (curView != null)
                     {
-                        listRooms = listUpdatedRooms[0];
-                    }
-                    else if (listUpdatedRooms.Count == 2)
-                    {
-                        listRooms = $"{listUpdatedRooms[0]} and {listUpdatedRooms[1]}";
+                        uidoc.ActiveView = curView;
                     }
                     else
                     {
-                        listRooms = string.Join(", ", listUpdatedRooms.Take(listUpdatedRooms.Count - 1)) + $", and {listUpdatedRooms.Last()}";
-                    }                   
+                        // if null notify the user
+                        Utils.TaskDialogWarning("Warning", "Spec Conversion", "No view found with name containing 'Annotation' and associated level 'First Floor'");
+                    }
 
-                    // commit the transaction
-                    t.Commit();
-
-                    // notify the user
-                    Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
-                }
-
-                #endregion
-
-                #region Door Updates
-
-                // get the door schedule & set it as the active view
-                View curSched = Utils.GetScheduleByNameContains(curDoc, "Door Schedule");
-
-                if (curSched != null)
-                {
-                    uidoc.ActiveView = curSched;
-                }
-                else
-                {
-                    // if not found alert the user
-                    Utils.TaskDialogError("Error", "Spec Conversion", "No Door Schedule found.");
-                }
-
-                // create transaction for door updates
-                using (Transaction t = new Transaction(curDoc, "Update Doors"))
-                {
-                    // start the second transaction
-                    t.Start();
-
-                    // update front door type
-                    UpdateFrontDoor(curDoc, selectedSpecLevel);
-
-                    // update rear door type
-                    UpdateRearDoor(curDoc, selectedSpecLevel);                    
-                  
-                    // commit the transaction
-                    t.Commit();
-                }
-
-                // notify the user
-                Utils.TaskDialogInformation("Information", "Spec Conversion", "The front and rear doors were replaced per the specified spec level.");
-
-                #endregion
-
-                #region Cabinet Updates
-
-                // get the Interior Elevations sheet & set it as the active view
-                ViewSheet sheetIntr = Utils.GetSheetByName(curDoc, "Interior Elevations");
-
-                if (sheetIntr != null)
-                {
-                    uidoc.ActiveView = sheetIntr;
-                }
-                else
-                {
-                    // if not found alert the user
-                    Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
-                }
-
-                // create transaction for cabinet updates
-                using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
-                {
-                    // start the third transaction
-                    t.Start();
-
-                    // revise the upper cabinets
-                    if (selectedSpecLevel == "Complete Home")
+                    // create a transaction for the flooring update
+                    using (Transaction t = new Transaction(curDoc, "Update Floor Finish"))
                     {
-                        // lower the upper cabinets to 36"
-                        ReplaceWallCabinets(curDoc, "36");
-                        ManageCaseworkTags(curDoc, selectedSpecLevel);
+                        // start the first transaction
+                        t.Start();
+
+                        // change the flooring for the specified rooms per the selected spec level
+                        List<string> listUpdatedRooms = UpdateFloorFinishInActiveView(curDoc, selectedSpecLevel);
+
+                        // manage the floor material breaks
+                        ManageFloorMaterialBreaksInActiveView(curDoc, listUpdatedRooms);
+
+                        // create a list of the rooms updated
+                        string listRooms;
+                        if (listUpdatedRooms.Count == 1)
+                        {
+                            listRooms = listUpdatedRooms[0];
+                        }
+                        else if (listUpdatedRooms.Count == 2)
+                        {
+                            listRooms = $"{listUpdatedRooms[0]} and {listUpdatedRooms[1]}";
+                        }
+                        else
+                        {
+                            listRooms = string.Join(", ", listUpdatedRooms.Take(listUpdatedRooms.Count - 1)) + $", and {listUpdatedRooms.Last()}";
+                        }
+
+                        // commit the transaction
+                        t.Commit();
+
+                        // notify the user
+                        Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
+                    }
+
+                    #endregion
+
+                    #region Door Updates
+
+                    // get the door schedule & set it as the active view
+                    View curSched = Utils.GetScheduleByNameContains(curDoc, "Door Schedule");
+
+                    if (curSched != null)
+                    {
+                        uidoc.ActiveView = curSched;
                     }
                     else
                     {
-                        // raise the upper cabinets to 42"
-                        ReplaceWallCabinets(curDoc, "42");
-                        ManageCaseworkTags(curDoc, selectedSpecLevel);
+                        // if not found alert the user
+                        Utils.TaskDialogError("Error", "Spec Conversion", "No Door Schedule found.");
                     }
 
-                    // get MW cabinet height from cabinet spec map
-                    string mwHeight = clsCabSpecMap.GetMWCabHeight(selectedClient, selectedSpecLevel);
-                    if (mwHeight == null)
+                    // create transaction for door updates
+                    using (Transaction t = new Transaction(curDoc, "Update Doors"))
                     {
-                        Utils.TaskDialogError("Error", "Spec Conversion", $"No MW cabinet height found for {selectedClient} - {selectedSpecLevel}");
-                        return Result.Failed;
+                        // start the second transaction
+                        t.Start();
+
+                        // update front door type
+                        UpdateFrontDoor(curDoc, selectedSpecLevel);
+
+                        // update rear door type
+                        UpdateRearDoor(curDoc, selectedSpecLevel);
+
+                        // commit the transaction
+                        t.Commit();
                     }
-
-                    // revise the MW cabinet
-                    ReplaceMWCabinet(curDoc, mwHeight);
-
-                    // get Ref Sp settings from the cabinet spec map
-                    var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
-                    if (refSpSettings == null)
-                    {
-                        Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
-                        return Result.Failed;
-                    }
-
-                    // apply the Ref Sp settings
-                    ManageRefSpCabinet(curDoc, refSpSettings);
-
-                    // raise/lower the backsplash height
-                    UpdateBacksplash(curDoc, selectedSpecLevel);
-
-                    // commit the transaction
-                    t.Commit();
 
                     // notify the user
-                    // upper cabinets were revised per the selected spec level
-                    // Ref Sp cabinet was added/removed per the selected spec level
-                    // backsplash height was raised/lowered per the selected spec level
-                }
+                    Utils.TaskDialogInformation("Information", "Spec Conversion", "The front and rear doors were replaced per the specified spec level.");
 
-                #endregion
+                    #endregion
 
-                #region General Electrical Setup
+                    #region Cabinet Updates
 
-                // get all electrical plan views
-                List<View> electricalViews = Utils.GetAllViewsByNameContains(curDoc, "Electrical");
+                    // get the Interior Elevations sheet & set it as the active view
+                    ViewSheet sheetIntr = Utils.GetSheetByName(curDoc, "Interior Elevations");
 
-                // verify if project is two story
-                bool isPlanTwoStory = new FilteredElementCollector(curDoc)
-                    .OfClass(typeof(Level))
-                    .Cast<Level>()
-                    .Any(level => level.Name.Contains("Second Floor"));
-
-                // load the new electrical families (outlet & light fixture)
-                Family lightSymbol = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Lighting", "LD_LF_None");
-                Family outletSymbol = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
-
-                #endregion
-
-                #region First Floor Electrical Updates
-
-                // get all views with Electrical in the name & associated with the First Floor
-                List<View> firstFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor");
-              
-                // get the first view in the list and set it as the active view
-                if (firstFloorElecViews.Any())
-                {
-                    uidoc.ActiveView = firstFloorElecViews.First();
-
-                    // create transaction for first floor electrical updates
-                    using (Transaction t = new Transaction(curDoc, "Update First Floor Electrical"))
+                    if (sheetIntr != null)
                     {
-                        // start the fourth transaction
+                        uidoc.ActiveView = sheetIntr;
+                    }
+                    else
+                    {
+                        // if not found alert the user
+                        Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
+                    }
+
+                    // create transaction for cabinet updates
+                    using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
+                    {
+                        // start the third transaction
+                        t.Start();
+
+                        // revise the upper cabinets
+                        if (selectedSpecLevel == "Complete Home")
+                        {
+                            // lower the upper cabinets to 36"
+                            ReplaceWallCabinets(curDoc, "36");
+                            ReplaceCabinetFillers(curDoc, "36");
+                            ManageCaseworkTags(curDoc, selectedSpecLevel);
+                        }
+                        else
+                        {
+                            // raise the upper cabinets to 42"
+                            ReplaceWallCabinets(curDoc, "42");
+                            ReplaceCabinetFillers(curDoc, "42");
+                            ManageCaseworkTags(curDoc, selectedSpecLevel);
+                        }
+
+                        // get MW cabinet height from cabinet spec map
+                        string mwHeight = clsCabSpecMap.GetMWCabHeight(selectedClient, selectedSpecLevel);
+                        if (mwHeight == null)
+                        {
+                            Utils.TaskDialogError("Error", "Spec Conversion", $"No MW cabinet height found for {selectedClient} - {selectedSpecLevel}");
+                            return Result.Failed;
+                        }
+
+                        // revise the MW cabinet
+                        ReplaceMWCabinet(curDoc, mwHeight);
+
+                        // get Ref Sp settings from the cabinet spec map
+                        var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
+                        if (refSpSettings == null)
+                        {
+                            Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
+                            return Result.Failed;
+                        }
+
+                        // apply the Ref Sp settings
+                        ManageRefSpCabinet(curDoc, refSpSettings);
+
+                        // raise/lower the backsplash height
+                        UpdateBacksplash(curDoc, selectedSpecLevel);
+
+                        // commit the transaction
+                        t.Commit();
+
+                        // notify the user
+                        // upper cabinets were revised per the selected spec level
+                        // Ref Sp cabinet was added/removed per the selected spec level
+                        // backsplash height was raised/lowered per the selected spec level
+                    }
+
+                    #endregion
+
+                    #region General Electrical Setup
+
+                    // get all electrical plan views
+                    List<View> electricalViews = Utils.GetAllViewsByNameContains(curDoc, "Electrical");
+
+                    // verify if project is two story
+                    bool isPlanTwoStory = new FilteredElementCollector(curDoc)
+                        .OfClass(typeof(Level))
+                        .Cast<Level>()
+                        .Any(level => level.Name.Contains("Second Floor"));
+
+                    // load the new electrical families (outlet & light fixture)
+                    Family lightSymbol = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Lighting", "LD_LF_None");
+                    Family outletSymbol = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
+
+                    #endregion
+
+                    #region First Floor Electrical Updates
+
+                    // get all views with Electrical in the name & associated with the First Floor
+                    List<View> firstFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor");
+
+                    // get the first view in the list and set it as the active view
+                    if (firstFloorElecViews.Any())
+                    {
+                        uidoc.ActiveView = firstFloorElecViews.First();
+
+                        // create transaction for first floor electrical updates
+                        using (Transaction t = new Transaction(curDoc, "Update First Floor Electrical"))
+                        {
+                            // start the fourth transaction
+                            t.Start();
+
+                            // replace the light fixtures in the specified rooms per the selected spec level
+                            var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
+
+                            // add/remove the ceiling fan note in the views
+                            var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+
+                            //// add/remove the sprinkler outlet in the Garage
+                            //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
+
+                            //// add/remove sprinkler outlet note
+                            //RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+
+                            // commit the transaction
+                            t.Commit();
+
+                            // Show summary message with proper grammar
+                            string roomList;
+                            if (roomsUpdated.Count == 0)
+                            {
+                                roomList = "No rooms";
+                            }
+                            else if (roomsUpdated.Count == 1)
+                            {
+                                roomList = roomsUpdated[0];
+                            }
+                            else if (roomsUpdated.Count == 2)
+                            {
+                                roomList = $"{roomsUpdated[0]} and {roomsUpdated[1]}";
+                            }
+                            else
+                            {
+                                roomList = string.Join(", ", roomsUpdated.Take(roomsUpdated.Count - 1)) + $", and {roomsUpdated.Last()}";
+                            }
+
+                            // Determine action based on spec level
+                            string action = selectedSpecLevel switch
+                            {
+                                "Complete Home" => "added",
+                                "Complete Home Plus" => "deleted",
+                                _ => "processed"
+                            };
+
+                            // Grammar for fixtures and views
+                            string fixtureText = roomsUpdated.Count == 1 ? "Fixture updated" : "Fixtures updated";
+                            string viewText = viewCount == 1 ? "view" : "views";
+
+                            // Create the final message
+                            string messageSummary = $"{fixtureText} in {roomList}. Ceiling fan notes {action} across {viewCount} {viewText}.";
+
+                            // Show the summary dialog
+                            Utils.TaskDialogInformation("Complete", "First Floor Electrical", messageSummary);
+                        }
+                    }
+                    else
+                    {
+                        // if not found alert the user
+                        Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for First Floor");
+                    }
+
+                    #endregion
+
+                    #region Second Floor Electrical Updates
+
+                    // get all views with Electrical in the name & associated with the Second Floor
+                    List<View> secondFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "Second Floor");
+
+                    // get the first view in the list and set it as the active view
+                    if (secondFloorElecViews.Any())
+                    {
+                        uidoc.ActiveView = secondFloorElecViews.First();
+                    }
+                    else
+                    {
+                        // if not found alert the user
+                        Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for Second Floor");
+                    }
+
+                    // create transaction for Second Floor Electrical updates
+                    using (Transaction t = new Transaction(curDoc, "Update Second Floor Electrical"))
+                    {
+
+                        // start the transaction
                         t.Start();
 
                         // replace the light fixtures in the specified rooms per the selected spec level
                         var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
 
                         // add/remove the ceiling fan note in the views
-                        var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
-
-                        //// add/remove the sprinkler outlet in the Garage
-                        //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
-
-                        //// add/remove sprinkler outlet note
-                        //RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+                        var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, secondFloorElecViews);
 
                         // commit the transaction
                         t.Commit();
@@ -334,143 +410,73 @@ namespace ConvertSpecLevel
 
                         // Show the summary dialog
                         Utils.TaskDialogInformation("Complete", "First Floor Electrical", messageSummary);
-                    }                    
-                }
-                else
-                {
-                    // if not found alert the user
-                    Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for First Floor");
+                    }
+
+                    #endregion
+
+                    // commit the transaction group
+                    transgroup.Assimilate();
                 }
 
                 #endregion
-
-                #region Second Floor Electrical Updates
-
-                // get all views with Electrical in the name & associated with the Second Floor
-                List<View> secondFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "Second Floor");
-
-                // get the first view in the list and set it as the active view
-                if (secondFloorElecViews.Any())
-                {
-                    uidoc.ActiveView = secondFloorElecViews.First();
-                }
-                else
-                {
-                    // if not found alert the user
-                    Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for Second Floor");
-                }
-
-                // create transaction for Second Floor Electrical updates
-                using (Transaction t = new Transaction(curDoc, "Update Second Floor Electrical"))
-                {
-
-                    // start the transaction
-                    t.Start();
-
-                    // replace the light fixtures in the specified rooms per the selected spec level
-                    var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
-
-                    // add/remove the ceiling fan note in the views
-                    var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, secondFloorElecViews);
-
-                    // commit the transaction
-                    t.Commit();
-
-                    // Show summary message with proper grammar
-                    string roomList;
-                    if (roomsUpdated.Count == 0)
-                    {
-                        roomList = "No rooms";
-                    }
-                    else if (roomsUpdated.Count == 1)
-                    {
-                        roomList = roomsUpdated[0];
-                    }
-                    else if (roomsUpdated.Count == 2)
-                    {
-                        roomList = $"{roomsUpdated[0]} and {roomsUpdated[1]}";
-                    }
-                    else
-                    {
-                        roomList = string.Join(", ", roomsUpdated.Take(roomsUpdated.Count - 1)) + $", and {roomsUpdated.Last()}";
-                    }
-
-                    // Determine action based on spec level
-                    string action = selectedSpecLevel switch
-                    {
-                        "Complete Home" => "added",
-                        "Complete Home Plus" => "deleted",
-                        _ => "processed"
-                    };
-
-                    // Grammar for fixtures and views
-                    string fixtureText = roomsUpdated.Count == 1 ? "Fixture updated" : "Fixtures updated";
-                    string viewText = viewCount == 1 ? "view" : "views";
-
-                    // Create the final message
-                    string messageSummary = $"{fixtureText} in {roomList}. Ceiling fan notes {action} across {viewCount} {viewText}.";
-
-                    // Show the summary dialog
-                    Utils.TaskDialogInformation("Complete", "First Floor Electrical", messageSummary);
-                }
-
-                #endregion
-
-                // commit the transaction group
-                transgroup.Assimilate();
             }
-
-            #endregion
 
             return Result.Succeeded;
         }
 
-        private void ManageRefSpCabinet(Document curDoc, clsCabSpecMap.RefSpSettings refSpSettings)
+        private void ReplaceCabinetFillers(Document curDoc, string fillerHeight)
         {
-            // find existing Ref Sp instances
-            var instanceRefSp = new FilteredElementCollector (curDoc)
+            // load the new filler families
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_Filler");
+
+            // get all wall fillers in the document
+            List<FamilyInstance> m_allWallFillers = GetAllWallFillers(curDoc);
+
+            // loop through all wall fillers
+            foreach (FamilyInstance curFiller in  m_allWallFillers)
+            {
+                // create string variable for new filler family name
+                string newFillerFamilyName = "LD_CW_Wall_Filler";
+
+                // get the current filler type name
+                string curFillerTypeName = curFiller.Symbol.Name;
+
+                // get the new filler type based on the spec level height
+                string[] curDimensions = curFillerTypeName.Split('x');
+                string curWidth = curDimensions[0].Trim();
+                string newFillerTypeName = curWidth + "x" + fillerHeight + "\"";
+
+                // add filler replacement logic
+                FamilySymbol newFillerType = Utils.GetFamilySymbolByName(curDoc, newFillerFamilyName, newFillerTypeName);
+
+                // null check for the new cabinet type
+                if (newFillerType == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", $"Filler type '{newFillerTypeName}' not found in the project after loading family.");
+                    continue;
+                }
+
+                // check if the new cabinet type is active
+                if (!newFillerType.IsActive)
+                {
+                    newFillerType.Activate();
+                }
+
+                // replace the cabinet type
+                curFiller.Symbol = newFillerType;
+            }
+        }
+
+        private List<FamilyInstance> GetAllWallFillers(Document curDoc)
+        {
+            // get all wall cabinets in the document
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Casework)
                 .OfClass(typeof(FamilyInstance))
-                .OfCategory(BuiltInCategory.OST_GenericModel)
                 .Cast<FamilyInstance>()
-                .Where(fi => fi.Symbol.Family.Name.Contains("LD_GR_Kitchen_Ref-Sp"))
+                .Where(cab => (cab.Symbol.Family.Name.Contains("Filler")) &&
+                 cab.Symbol.Name.Split('x').Length == 2)
                 .ToList();
-
-            bool isVisible = refSpSettings.IsVisible;
-            string typeName = refSpSettings.TypeName;
-            double heightOffset = refSpSettings.HeightOffsetFromLevel;
-
-            if (instanceRefSp.Count == 0)
-            {
-                Utils.TaskDialogWarning("Warning", "Spec Conversion", "No Ref Sp instances found in the project.");
-                return;
-            }
-
-            // if found apply settings
-            foreach (FamilyInstance curRefSp in instanceRefSp)
-            {
-                // apply cabinet visibility parameter
-                Parameter visibilityParam = curRefSp.LookupParameter("Ref Sp Cabinet");
-                if (visibilityParam != null)
-                {
-                    visibilityParam.Set(isVisible ? 1 : 0);  // 1 = visible, 0 = hidden
-                }
-
-                // apply cabinet type if visible
-                Parameter typeParam = curRefSp.LookupParameter("Cabinet");
-                if (typeParam != null && !string.IsNullOrEmpty(typeName))
-                {
-                    // Construct the full format: "FamilyName : TypeName"
-                    string fullCabinetValue = $"LD_CW_Wall_2-Dr_Flush : {typeName}";
-                    typeParam.Set(fullCabinetValue);
-                }
-
-                // apply height offset from level
-                Parameter heightParam = curRefSp.LookupParameter("Cabinet Offset AFF");
-                if (heightParam != null)
-                {
-                    heightParam.Set(heightOffset);
-                }
-            }
         }
 
         private List<ElementId> GetElementsToDelete(Document curDoc)
@@ -590,7 +596,7 @@ namespace ConvertSpecLevel
                         XYZ cabinetPoint = cabinetLoc.Point;
 
                         // Check height range - cabinet bottom between 6' and 6'-6"
-                        if (cabinetPoint.Z < 6.0 || cabinetPoint.Z > 6.5)
+                        if (cabinetPoint.Z < 6.0 || cabinetPoint.Z > 6.6)
                             return false;
 
                         // Get cabinet bounding box with slightly larger tolerance
@@ -1306,6 +1312,54 @@ namespace ConvertSpecLevel
                  cab.Symbol.Family.Name.Contains("Wall")) &&
                  cab.Symbol.Name.Split('x').Length == 2)
                 .ToList();
+        }
+
+        private void ManageRefSpCabinet(Document curDoc, clsCabSpecMap.RefSpSettings refSpSettings)
+        {
+            // find existing Ref Sp instances
+            var instanceRefSp = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_GenericModel)
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.Family.Name.Contains("LD_GR_Kitchen_Ref-Sp"))
+                .ToList();
+
+            bool isVisible = refSpSettings.IsVisible;
+            string typeName = refSpSettings.TypeName;
+            double heightOffset = refSpSettings.HeightOffsetFromLevel;
+
+            if (instanceRefSp.Count == 0)
+            {
+                Utils.TaskDialogWarning("Warning", "Spec Conversion", "No Ref Sp instances found in the project.");
+                return;
+            }
+
+            // if found apply settings
+            foreach (FamilyInstance curRefSp in instanceRefSp)
+            {
+                // apply cabinet visibility parameter
+                Parameter visibilityParam = curRefSp.LookupParameter("Ref Sp Cabinet");
+                if (visibilityParam != null)
+                {
+                    visibilityParam.Set(isVisible ? 1 : 0);  // 1 = visible, 0 = hidden
+                }
+
+                // apply cabinet type if visible
+                Parameter typeParam = curRefSp.LookupParameter("Cabinet");
+                if (typeParam != null && !string.IsNullOrEmpty(typeName))
+                {
+                    // Construct the full format: "FamilyName : TypeName"
+                    string fullCabinetValue = $"LD_CW_Wall_2-Dr_Flush : {typeName}";
+                    typeParam.Set(fullCabinetValue);
+                }
+
+                // apply height offset from level
+                Parameter heightParam = curRefSp.LookupParameter("Cabinet Offset AFF");
+                if (heightParam != null)
+                {
+                    heightParam.Set(heightOffset);
+                }
+            }
         }
 
         private void ReplaceMWCabinet(Document curDoc, string selectedMWCabHeight)
