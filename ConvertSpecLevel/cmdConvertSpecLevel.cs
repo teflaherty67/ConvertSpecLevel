@@ -580,50 +580,57 @@ namespace ConvertSpecLevel
                 // add found CW connection to deletion list
                 elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
 
-                // proximity search for Ref Sp wall cabinet
-                var wallCabinetsAbove = new FilteredElementCollector(curDoc)
-                    .OfCategory(BuiltInCategory.OST_Casework)
-                    .OfClass(typeof(FamilyInstance))
-                    .Cast<FamilyInstance>()
-                    .Where(cabinet =>
+                // proximity search using ray casting for Ref Sp wall cabinet
+                List<FamilyInstance> wallCabinetsAbove = new List<FamilyInstance>();
+
+                // Get a 3D view for the ray casting operation
+                View3D view3D = new FilteredElementCollector(curDoc)
+                    .OfClass(typeof(View3D))
+                    .Cast<View3D>()
+                    .FirstOrDefault(v => !v.IsTemplate);
+
+                if (view3D == null)
+                {
+                    // Fallback: try to find the default {3D} view
+                    view3D = new FilteredElementCollector(curDoc)
+                        .OfClass(typeof(View3D))
+                        .Cast<View3D>()
+                        .FirstOrDefault(v => v.Name == "{3D}" && !v.IsTemplate);
+                }
+
+                if (view3D != null)
+                {
+                    // Create a vertical ray from the fridge location straight up
+                    XYZ rayStart = refSpPoint;
+                    XYZ rayDirection = XYZ.BasisZ; // Straight up (positive Z direction)
+
+                    // Create the reference intersector with the 3D view
+                    ReferenceIntersector intersector = new ReferenceIntersector(view3D);
+                    intersector.TargetType = FindReferenceTarget.Element;
+
+                    // Find the first intersection along the vertical ray
+                    ReferenceWithContext intersection = intersector.FindNearest(rayStart, rayDirection);
+
+                    if (intersection != null)
                     {
-                        // Skip nested families (like knobs)
-                        if (cabinet.SuperComponent != null) return false;
+                        Element intersectedElement = curDoc.GetElement(intersection.GetReference());
 
-                        LocationPoint cabinetLoc = cabinet.Location as LocationPoint;
-                        if (cabinetLoc == null) return false;
-
-                        XYZ cabinetPoint = cabinetLoc.Point;
-
-                        // Check height range - cabinet bottom between 6' and 6'-6"
-                        if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > 6.6)
-                            return false;
-
-                        // Get cabinet bounding box with slightly larger tolerance
-                        BoundingBoxXYZ cabinetBounds = cabinet.get_BoundingBox(null);
-                        if (cabinetBounds == null) return false;
-
-                        // Expand search area slightly (20.5" instead of 19.5")
-                        double tolerance = 20.5 / 12.0; // Convert to feet
-                        bool withinX = Math.Abs(cabinetPoint.X - refSpPoint.X) <= tolerance;
-                        bool withinY = Math.Abs(cabinetPoint.Y - refSpPoint.Y) <= tolerance;
-
-                        if (!withinX || !withinY) return false;
-
-                        // Filter by Offset from Level parameter (target specific mounting height)
-                        Parameter offsetParam = cabinet.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
-                        if (offsetParam != null)
+                        // Check if it's a wall cabinet (and not nested hardware)
+                        if (intersectedElement is FamilyInstance cabinet &&
+                            cabinet.Category.Id == new ElementId(BuiltInCategory.OST_Casework) &&
+                            cabinet.SuperComponent == null) // Skip nested families like knobs
                         {
-                            double offsetFromLevel = offsetParam.AsDouble();
-                            // Look for cabinets mounted at typical fridge cabinet height (6'-0" to 6'-6")
-                            return offsetFromLevel >= 6.0 && offsetFromLevel <= 6.5;
+                            wallCabinetsAbove.Add(cabinet);
                         }
+                    }
+                }
+                else
+                {
+                    // If no 3D view available, fall back to warning
+                    Utils.TaskDialogWarning("Warning", "Cabinet Search", "No 3D view available for cabinet detection. Cabinet above fridge may not be deleted.");
+                }
 
-                        return false;
-                    })
-                    .ToList();
-
-                // add found wall cabinet to deletion list
+                // Add found wall cabinet to deletion list
                 elementsToDelete.AddRange(wallCabinetsAbove.Select(cab => cab.Id));
             }
 
