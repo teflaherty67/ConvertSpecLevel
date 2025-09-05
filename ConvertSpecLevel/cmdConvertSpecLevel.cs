@@ -595,8 +595,8 @@ namespace ConvertSpecLevel
 
                         XYZ cabinetPoint = cabinetLoc.Point;
 
-                        // Check height range - cabinet bottom between 6' and 6'-6"
-                        if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > 6.6)
+                        // Check height range - cabinet bottom between 5'-9" and 6'-6"
+                        if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > 6.5)
                             return false;
 
                         // Get cabinet bounding box with slightly larger tolerance
@@ -604,7 +604,7 @@ namespace ConvertSpecLevel
                         if (cabinetBounds == null) return false;
 
                         // Expand search area slightly (20.5" instead of 19.5")
-                        double tolerance = 20.5 / 12.0; // Convert to feet
+                        double tolerance = 21.5 / 12.0; // Convert to feet
                         bool withinX = Math.Abs(cabinetPoint.X - refSpPoint.X) <= tolerance;
                         bool withinY = Math.Abs(cabinetPoint.Y - refSpPoint.Y) <= tolerance;
 
@@ -616,7 +616,7 @@ namespace ConvertSpecLevel
                         {
                             double offsetFromLevel = offsetParam.AsDouble();
                             // Look for cabinets mounted at typical fridge cabinet height (6'-0" to 6'-6")
-                            return offsetFromLevel >= 6.0 && offsetFromLevel <= 6.5;
+                            return offsetFromLevel >= 5.75 && offsetFromLevel <= 6.5;
                         }
 
                         return false;
