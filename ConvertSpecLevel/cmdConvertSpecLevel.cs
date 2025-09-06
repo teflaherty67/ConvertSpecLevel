@@ -518,15 +518,37 @@ namespace ConvertSpecLevel
                     roomCeilingHeight = ceilingHeightParam?.AsDouble() ?? 0.0;
                 }
 
-                // Define small rectangular search area for outlets and CW connections
-                double halfWidth = 1.5;   // 18" each side = 16" total width  
-                double halfDepth = 1.5;   // 18" each side = 16" total depth
+                // get fridge family name
+                string curRefSpFamilyName = curRefSp.Symbol.Family.Name;
+               
+                // set default search offset based on fridge type
+                double searchOffsetX = 0.0;
+                double searchOffsetY = 0.0;
 
-                // Create boundaries around fridge center
-                double minX = refSpPoint.X - halfWidth;
-                double maxX = refSpPoint.X + halfWidth;
-                double minY = refSpPoint.Y - halfDepth;
-                double maxY = refSpPoint.Y + halfDepth;
+                // update search offset for specific fridge family
+                if (curRefSpFamilyName.Contains("Refrigerator"))
+                {
+                    // Get fridge transform to determine orientation
+                    Transform fridgeTransform = curRefSp.GetTransform();
+                    XYZ fridgeYAxis = fridgeTransform.BasisY; // Forward direction
+
+                    // Calculate offset in the backwards direction (negative Y-axis)
+                    XYZ offsetVector = fridgeYAxis * (-18.0 / 12.0); // 18" backwards from fridge center
+
+                    // Apply the rotated offset
+                    searchOffsetX = offsetVector.X;
+                    searchOffsetY = offsetVector.Y;
+                }
+
+                // Define small rectangular search area for outlets and CW connections
+                double halfWidth = 1.5;   // 18" each side = 36" total width  
+                double halfDepth = .13;   // 1.5" each side = 3" total depth
+
+                // Create boundaries around fridge origin
+                double minX = refSpPoint.X - halfWidth + searchOffsetX;
+                double maxX = refSpPoint.X + halfWidth + searchOffsetX;
+                double minY = refSpPoint.Y - halfDepth + searchOffsetY;
+                double maxY = refSpPoint.Y + halfDepth + searchOffsetY;               
 
                 // perform proximity search for electrical outlet
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
@@ -603,7 +625,7 @@ namespace ConvertSpecLevel
                         BoundingBoxXYZ cabinetBounds = cabinet.get_BoundingBox(null);
                         if (cabinetBounds == null) return false;
 
-                        // Expand search area slightly (20.5" instead of 19.5")
+                        // Expand search area slightly (21.5" instead of 19.5")
                         double tolerance = 21.5 / 12.0; // Convert to feet
                         bool withinX = Math.Abs(cabinetPoint.X - refSpPoint.X) <= tolerance;
                         bool withinY = Math.Abs(cabinetPoint.Y - refSpPoint.Y) <= tolerance;
