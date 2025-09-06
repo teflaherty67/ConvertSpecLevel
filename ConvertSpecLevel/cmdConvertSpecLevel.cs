@@ -520,7 +520,10 @@ namespace ConvertSpecLevel
 
                 // get fridge family name
                 string curRefSpFamilyName = curRefSp.Symbol.Family.Name;
-               
+
+                // DEBUG: Show what family was found
+                Utils.TaskDialogInformation("Debug", "Family Found", $"Fridge family: {curRefSpFamilyName}");
+
                 // set default search offset based on fridge type
                 double searchOffsetX = 0.0;
                 double searchOffsetY = 0.0;
@@ -535,6 +538,9 @@ namespace ConvertSpecLevel
                     // Calculate offset in the backwards direction (negative Y-axis)
                     XYZ offsetVector = fridgeYAxis * (-18.0 / 12.0); // 18" backwards from fridge center
 
+                    // DEBUG: Confirm offset is being applied
+                    Utils.TaskDialogInformation("Debug", "Offset Applied", $"Applied -18\" offset to search area");
+
                     // Apply the rotated offset
                     searchOffsetX = offsetVector.X;
                     searchOffsetY = offsetVector.Y;
@@ -548,7 +554,11 @@ namespace ConvertSpecLevel
                 double minX = refSpPoint.X - halfWidth + searchOffsetX;
                 double maxX = refSpPoint.X + halfWidth + searchOffsetX;
                 double minY = refSpPoint.Y - halfDepth + searchOffsetY;
-                double maxY = refSpPoint.Y + halfDepth + searchOffsetY;               
+                double maxY = refSpPoint.Y + halfDepth + searchOffsetY;
+
+                Utils.TaskDialogInformation("Debug", "Search Area",
+                    $"Fridge at: X={refSpPoint.X:F2}, Y={refSpPoint.Y:F2}\n" +
+                    $"Search area: X={minX:F2} to {maxX:F2}, Y={minY:F2} to {maxY:F2}");
 
                 // perform proximity search for electrical outlet
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
