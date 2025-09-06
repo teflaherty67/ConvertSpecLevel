@@ -542,7 +542,7 @@ namespace ConvertSpecLevel
 
                 // Define small rectangular search area for outlets and CW connections
                 double halfWidth = 1.5;   // 18" each side = 36" total width  
-                double halfDepth = .13;   // 1.5" each side = 3" total depth
+                double halfDepth = 1.5;   // 1.5" each side = 3" total depth
 
                 // Create boundaries around fridge origin
                 double minX = refSpPoint.X - halfWidth + searchOffsetX;
