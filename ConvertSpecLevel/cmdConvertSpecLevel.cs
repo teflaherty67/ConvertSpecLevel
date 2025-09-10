@@ -491,26 +491,56 @@ namespace ConvertSpecLevel
                 .Where(fi => fi.Symbol.Family.Name.Contains("Refrigerator") || fi.Symbol.Family.Name.Contains("Refrigeration"))
                 .ToList();
 
-            // if none found...
+            // If none found, notify the user
             if (existingRefSp.Count == 0)
             {
-                // ... notify the user
                 Utils.TaskDialogWarning("Warning", "Spec Conversion", "No existing refrigerator found in the project.");
-                return new List<ElementId>();
+                return elementsToDelete;
             }
 
-            // loop through found Ref Sp instances & retunn their ElementId
             foreach (FamilyInstance curRefSp in existingRefSp)
             {
-                // current Ref Sp instance to list for deletion
                 elementsToDelete.Add(curRefSp.Id);
 
-                // Get fridge location once
-                LocationPoint refSpLocation = curRefSp.Location as LocationPoint;
-                XYZ refSpPoint = refSpLocation.Point;
+                LocationPoint locPoint = curRefSp.Location as LocationPoint;
+                if (locPoint == null) continue;
 
-                // Get the room and ceiling height for this fridge
-                Room fridgeRoom = curDoc.GetRoomAtPoint(refSpPoint);
+                XYZ basePoint = locPoint.Point;
+                double rotation = locPoint.Rotation;
+                XYZ searchOrigin = basePoint; // Default
+
+                // Get the family name
+                string curRefSpFamilyName = curRefSp.Symbol.Family.Name;
+
+                // DEBUG
+                Utils.TaskDialogInformation("Debug", "Fridge Detected", $"Family: {curRefSpFamilyName}");
+
+                // Determine offset conditionally
+                if (curRefSpFamilyName.Contains("Refrigerator"))
+                {
+                    // Apply rear offset for center-origin fridge
+                    double offsetFeet = 1.5; // 18"
+                    XYZ rearDirection = new XYZ(-Math.Sin(rotation), Math.Cos(rotation), 0).Normalize();
+                    XYZ offsetVector = rearDirection.Multiply(offsetFeet);
+                    searchOrigin = basePoint.Add(offsetVector);
+
+                    // DEBUG
+                    Utils.TaskDialogInformation("Debug", "Offset Applied",
+                        $"Rotation: {rotation * 180 / Math.PI:F1}°\n" +
+                        $"Offset: ({offsetVector.X:F2}, {offsetVector.Y:F2})");
+                }
+                else
+                {
+                    // No offset needed — origin already on wall face
+                    searchOrigin = basePoint;
+
+                    // DEBUG
+                    Utils.TaskDialogInformation("Debug", "No Offset Applied",
+                        $"Family origin assumed to be on wall face.\nSearchOrigin = BasePoint.");
+                }
+
+                // Get the room and ceiling height
+                Room fridgeRoom = curDoc.GetRoomAtPoint(basePoint);
                 double roomCeilingHeight = 0.0;
                 if (fridgeRoom != null)
                 {
@@ -518,108 +548,69 @@ namespace ConvertSpecLevel
                     roomCeilingHeight = ceilingHeightParam?.AsDouble() ?? 0.0;
                 }
 
-                // get fridge family name
-                string curRefSpFamilyName = curRefSp.Symbol.Family.Name;
+                // Define rectangular search box centered on searchOrigin
+                double halfWidth = 1.5;
+                double halfDepth = 1.5;
 
-                // DEBUG: Show what family was found
-                Utils.TaskDialogInformation("Debug", "Family Found", $"Fridge family: {curRefSpFamilyName}");
-
-                // set default search offset based on fridge type
-                double searchOffsetX = 0.0;
-                double searchOffsetY = 0.0;
-
-                // update search offset for specific fridge family
-                if (curRefSpFamilyName.Contains("Refrigerator"))
-                {
-                    // Get fridge transform to determine orientation
-                    Transform fridgeTransform = curRefSp.GetTransform();
-                    XYZ fridgeYAxis = fridgeTransform.BasisY; // Forward direction
-
-                    // Calculate offset in the backwards direction (negative Y-axis)
-                    XYZ offsetVector = fridgeYAxis * (-18.0 / 12.0); // 18" backwards from fridge center
-
-                    // DEBUG: Confirm offset is being applied
-                    Utils.TaskDialogInformation("Debug", "Offset Applied", $"Applied -18\" offset to search area");
-
-                    // Apply the rotated offset
-                    searchOffsetX = offsetVector.X;
-                    searchOffsetY = offsetVector.Y;
-                }
-
-                // Define small rectangular search area for outlets and CW connections
-                double halfWidth = 1.5;   // 18" each side = 36" total width  
-                double halfDepth = 1.5;   // 3" each side = 6" total depth
-
-                // Create boundaries around fridge origin
-                double minX = refSpPoint.X - halfWidth + searchOffsetX;
-                double maxX = refSpPoint.X + halfWidth + searchOffsetX;
-                double minY = refSpPoint.Y - halfDepth + searchOffsetY;
-                double maxY = refSpPoint.Y + halfDepth + searchOffsetY;
+                double minX = searchOrigin.X - halfWidth;
+                double maxX = searchOrigin.X + halfWidth;
+                double minY = searchOrigin.Y - halfDepth;
+                double maxY = searchOrigin.Y + halfDepth;
 
                 Utils.TaskDialogInformation("Debug", "Search Area",
-                    $"Fridge at: X={refSpPoint.X:F2}, Y={refSpPoint.Y:F2}\n" +
-                    $"Search area: X={minX:F2} to {maxX:F2}, Y={minY:F2} to {maxY:F2}");
+                    $"Fridge at: ({basePoint.X:F2}, {basePoint.Y:F2})\n" +
+                    $"Search origin: ({searchOrigin.X:F2}, {searchOrigin.Y:F2})\n" +
+                    $"Search box: X={minX:F2}-{maxX:F2}, Y={minY:F2}-{maxY:F2}");
 
-                // perform proximity search for electrical outlet
+                // -------- Search for nearby outlets --------
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .Where(outlet =>
                     {
-                        // Get outlet location
                         LocationPoint outletLoc = outlet.Location as LocationPoint;
                         if (outletLoc == null) return false;
 
                         XYZ outletPoint = outletLoc.Point;
+                        double verticalDistance = Math.Abs(basePoint.Z - outletPoint.Z);
 
-                        // Calculate vertical distance  
-                        double verticalDistance = Math.Abs(refSpPoint.Z - outletPoint.Z);
-
-                        // Check if outlet is within rectangular boundaries and height tolerance
                         return outletPoint.X >= minX && outletPoint.X <= maxX &&
                                outletPoint.Y >= minY && outletPoint.Y <= maxY &&
                                verticalDistance <= 4.0;
                     })
                     .ToList();
 
-                // Add found outlets to deletion list
                 elementsToDelete.AddRange(nearbyOutlets.Select(o => o.Id));
 
-                // perform proximity search for CW connections
+                // -------- Search for nearby CW connections --------
                 var nearbyCWConnections = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .Where(connection =>
                     {
-                        // Get CW location
                         LocationPoint connectionCWLoc = connection.Location as LocationPoint;
                         if (connectionCWLoc == null) return false;
 
                         XYZ connectionPoint = connectionCWLoc.Point;
+                        double verticalDistance = Math.Abs(basePoint.Z - connectionPoint.Z);
 
-                        // Calculate vertical distance  
-                        double verticalDistance = Math.Abs(refSpPoint.Z - connectionPoint.Z);
-
-                        // Check if CW connection is within rectangular boundaries and height tolerance  
                         return connectionPoint.X >= minX && connectionPoint.X <= maxX &&
                                connectionPoint.Y >= minY && connectionPoint.Y <= maxY &&
                                verticalDistance <= 2.5;
                     })
                     .ToList();
 
-                // add found CW connection to deletion list
                 elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
 
-                // proximity search for Ref Sp wall cabinet
+                // -------- Search for wall cabinets above fridge --------
                 var wallCabinetsAbove = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_Casework)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .Where(cabinet =>
                     {
-                        // Skip nested families (like knobs)
                         if (cabinet.SuperComponent != null) return false;
 
                         LocationPoint cabinetLoc = cabinet.Location as LocationPoint;
@@ -627,27 +618,20 @@ namespace ConvertSpecLevel
 
                         XYZ cabinetPoint = cabinetLoc.Point;
 
-                        // Check height range - cabinet bottom between 5'-9" and 6'-6"
+                        // Cabinet bottom height between 5'-9" and 6'-6"
                         if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > 6.5)
                             return false;
 
-                        // Get cabinet bounding box with slightly larger tolerance
-                        BoundingBoxXYZ cabinetBounds = cabinet.get_BoundingBox(null);
-                        if (cabinetBounds == null) return false;
-
-                        // Expand search area slightly (21.5" instead of 19.5")
-                        double tolerance = 21.5 / 12.0; // Convert to feet
-                        bool withinX = Math.Abs(cabinetPoint.X - refSpPoint.X) <= tolerance;
-                        bool withinY = Math.Abs(cabinetPoint.Y - refSpPoint.Y) <= tolerance;
+                        double tolerance = 21.5 / 12.0;
+                        bool withinX = Math.Abs(cabinetPoint.X - basePoint.X) <= tolerance;
+                        bool withinY = Math.Abs(cabinetPoint.Y - basePoint.Y) <= tolerance;
 
                         if (!withinX || !withinY) return false;
 
-                        // Filter by Offset from Level parameter (target specific mounting height)
                         Parameter offsetParam = cabinet.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
                         if (offsetParam != null)
                         {
                             double offsetFromLevel = offsetParam.AsDouble();
-                            // Look for cabinets mounted at typical fridge cabinet height (6'-0" to 6'-6")
                             return offsetFromLevel >= 5.75 && offsetFromLevel <= 6.5;
                         }
 
@@ -655,12 +639,13 @@ namespace ConvertSpecLevel
                     })
                     .ToList();
 
-                // add found wall cabinet to deletion list
                 elementsToDelete.AddRange(wallCabinetsAbove.Select(cab => cab.Id));
             }
 
             return elementsToDelete;
         }
+
+
 
         #region Finish Floor Methods
 
