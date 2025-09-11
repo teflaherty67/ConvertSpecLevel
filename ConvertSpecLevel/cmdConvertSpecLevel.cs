@@ -491,150 +491,205 @@ namespace ConvertSpecLevel
                 .Where(fi => fi.Symbol.Family.Name.Contains("Refrigerator") || fi.Symbol.Family.Name.Contains("Refrigeration"))
                 .ToList();
 
-            // if none found...
+            // If none found, notify the user
             if (existingRefSp.Count == 0)
             {
-                // ... notify the user
                 Utils.TaskDialogWarning("Warning", "Spec Conversion", "No existing refrigerator found in the project.");
-                return new List<ElementId>();
+                return elementsToDelete;
             }
 
-            // loop through found Ref Sp instances & retunn their ElementId
             foreach (FamilyInstance curRefSp in existingRefSp)
             {
-                // current Ref Sp instance to list for deletion
                 elementsToDelete.Add(curRefSp.Id);
 
-                // Get fridge location once
-                LocationPoint refSpLocation = curRefSp.Location as LocationPoint;
-                XYZ refSpPoint = refSpLocation.Point;
+                LocationPoint locPoint = curRefSp.Location as LocationPoint;
+                if (locPoint == null) continue;
 
-                // Get the room and ceiling height for this fridge
-                Room fridgeRoom = curDoc.GetRoomAtPoint(refSpPoint);
-                double roomCeilingHeight = 0.0;
-                if (fridgeRoom != null)
+                XYZ fridgeOrigin = locPoint.Point;
+
+                // Get the family's transform to determine its orientation
+                Transform familyTransform = curRefSp.GetTransform();
+
+                // Get the family's local coordinate system directions
+                XYZ familyXDirection = familyTransform.BasisX; // Right direction
+                XYZ familyYDirection = familyTransform.BasisY; // Forward/Back direction
+
+                // For most appliance families, the Center (Left/Right) plane is perpendicular to the X-axis
+                // So we'll use the Y-direction (forward/back) as our search direction
+                XYZ centerLRDirection = familyYDirection.Normalize();
+
+                // DEBUG: Show the family orientation
+                Utils.TaskDialogInformation("Debug", "Family Orientation",
+                    $"Family: {curRefSp.Symbol.Family.Name}\n" +
+                    $"X Direction: ({familyXDirection.X:F2}, {familyXDirection.Y:F2}, {familyXDirection.Z:F2})\n" +
+                    $"Y Direction: ({familyYDirection.X:F2}, {familyYDirection.Y:F2}, {familyYDirection.Z:F2})\n" +
+                    $"Search Direction: ({centerLRDirection.X:F2}, {centerLRDirection.Y:F2}, {centerLRDirection.Z:F2})");
+
+                // Create line extending 18" in both directions along Center (L/R) reference
+                double searchDistance = 1.5; // 18" in feet
+                XYZ startPoint = fridgeOrigin - (centerLRDirection * searchDistance);
+                XYZ endPoint = fridgeOrigin + (centerLRDirection * searchDistance);
+                Line searchLine = Line.CreateBound(startPoint, endPoint);
+
+                // Find perpendicular wall to this line
+                Wall perpendicularWall = FindPerpendicularWall(curDoc, searchLine, fridgeOrigin);
+                if (perpendicularWall == null)
                 {
-                    Parameter ceilingHeightParam = fridgeRoom.get_Parameter(BuiltInParameter.ROOM_HEIGHT);
-                    roomCeilingHeight = ceilingHeightParam?.AsDouble() ?? 0.0;
+                    Utils.TaskDialogWarning("Warning", "Spec Conversion",
+                        "Could not find perpendicular wall to refrigerator");
+                    continue;
                 }
 
-                // Define small rectangular search area for outlets and CW connections
-                double halfWidth = 1.5;   // 18" each side = 16" total width  
-                double halfDepth = 1.5;   // 18" each side = 16" total depth
+                // Use the wall to establish search area for supporting elements
+                XYZ wallSearchPoint = GetWallSearchPoint(perpendicularWall, fridgeOrigin);
 
-                // Create boundaries around fridge center
-                double minX = refSpPoint.X - halfWidth;
-                double maxX = refSpPoint.X + halfWidth;
-                double minY = refSpPoint.Y - halfDepth;
-                double maxY = refSpPoint.Y + halfDepth;
+                // Define search area around the wall point
+                double searchRadius = 1.625; // 19.5" search radius
 
-                // perform proximity search for electrical outlet
+                // -------- Search for nearby outlets --------
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .Where(outlet =>
                     {
-                        // Get outlet location
+                        // Filter for only "Outlet-Duplex" type fixtures
+                        if (outlet.Symbol.Name != "Outlet-Duplex") return false;
+
                         LocationPoint outletLoc = outlet.Location as LocationPoint;
                         if (outletLoc == null) return false;
 
                         XYZ outletPoint = outletLoc.Point;
+                        double horizontalDistance = Math.Sqrt(
+                            Math.Pow(wallSearchPoint.X - outletPoint.X, 2) +
+                            Math.Pow(wallSearchPoint.Y - outletPoint.Y, 2));
+                        double verticalDistance = Math.Abs(fridgeOrigin.Z - outletPoint.Z);
 
-                        // Calculate vertical distance  
-                        double verticalDistance = Math.Abs(refSpPoint.Z - outletPoint.Z);
-
-                        // Check if outlet is within rectangular boundaries and height tolerance
-                        return outletPoint.X >= minX && outletPoint.X <= maxX &&
-                               outletPoint.Y >= minY && outletPoint.Y <= maxY &&
-                               verticalDistance <= 4.0;
+                        return horizontalDistance <= searchRadius && verticalDistance <= 4.0;
                     })
                     .ToList();
 
-                // Add found outlets to deletion list
                 elementsToDelete.AddRange(nearbyOutlets.Select(o => o.Id));
 
-                // perform proximity search for CW connections
+                // -------- Search for nearby CW connections --------
                 var nearbyCWConnections = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .Where(connection =>
                     {
-                        // Get CW location
-                        LocationPoint connectionCWLoc = connection.Location as LocationPoint;
-                        if (connectionCWLoc == null) return false;
+                        LocationPoint connectionLoc = connection.Location as LocationPoint;
+                        if (connectionLoc == null) return false;
 
-                        XYZ connectionPoint = connectionCWLoc.Point;
+                        XYZ connectionPoint = connectionLoc.Point;
+                        double horizontalDistance = Math.Sqrt(
+                            Math.Pow(wallSearchPoint.X - connectionPoint.X, 2) +
+                            Math.Pow(wallSearchPoint.Y - connectionPoint.Y, 2));
+                        double verticalDistance = Math.Abs(fridgeOrigin.Z - connectionPoint.Z);
 
-                        // Calculate vertical distance  
-                        double verticalDistance = Math.Abs(refSpPoint.Z - connectionPoint.Z);
-
-                        // Check if CW connection is within rectangular boundaries and height tolerance  
-                        return connectionPoint.X >= minX && connectionPoint.X <= maxX &&
-                               connectionPoint.Y >= minY && connectionPoint.Y <= maxY &&
-                               verticalDistance <= 2.0;
+                        return horizontalDistance <= searchRadius && verticalDistance <= 2.5;
                     })
                     .ToList();
 
-                // add found CW connection to deletion list
                 elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
 
-                // proximity search using ray casting for Ref Sp wall cabinet
-                List<FamilyInstance> wallCabinetsAbove = new List<FamilyInstance>();
-
-                // Get a 3D view for the ray casting operation
-                View3D view3D = new FilteredElementCollector(curDoc)
-                    .OfClass(typeof(View3D))
-                    .Cast<View3D>()
-                    .FirstOrDefault(v => !v.IsTemplate);
-
-                if (view3D == null)
-                {
-                    // Fallback: try to find the default {3D} view
-                    view3D = new FilteredElementCollector(curDoc)
-                        .OfClass(typeof(View3D))
-                        .Cast<View3D>()
-                        .FirstOrDefault(v => v.Name == "{3D}" && !v.IsTemplate);
-                }
-
-                if (view3D != null)
-                {
-                    // Create a vertical ray from the fridge location straight up
-                    XYZ rayStart = refSpPoint;
-                    XYZ rayDirection = XYZ.BasisZ; // Straight up (positive Z direction)
-
-                    // Create the reference intersector with the 3D view
-                    ReferenceIntersector intersector = new ReferenceIntersector(view3D);
-                    intersector.TargetType = FindReferenceTarget.Element;
-
-                    // Find the first intersection along the vertical ray
-                    ReferenceWithContext intersection = intersector.FindNearest(rayStart, rayDirection);
-
-                    if (intersection != null)
+                // -------- Search for wall cabinets above fridge --------
+                var wallCabinetsAbove = new FilteredElementCollector(curDoc)
+                    .OfCategory(BuiltInCategory.OST_Casework)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(cabinet =>
                     {
-                        Element intersectedElement = curDoc.GetElement(intersection.GetReference());
+                        if (cabinet.SuperComponent != null) return false;
 
-                        // Check if it's a wall cabinet (and not nested hardware)
-                        if (intersectedElement is FamilyInstance cabinet &&
-                            cabinet.Category.Id == new ElementId(BuiltInCategory.OST_Casework) &&
-                            cabinet.SuperComponent == null) // Skip nested families like knobs
-                        {
-                            wallCabinetsAbove.Add(cabinet);
-                        }
-                    }
-                }
-                else
-                {
-                    // If no 3D view available, fall back to warning
-                    Utils.TaskDialogWarning("Warning", "Cabinet Search", "No 3D view available for cabinet detection. Cabinet above fridge may not be deleted.");
-                }
+                        LocationPoint cabinetLoc = cabinet.Location as LocationPoint;
+                        if (cabinetLoc == null) return false;
 
-                // Add found wall cabinet to deletion list
+                        XYZ cabinetPoint = cabinetLoc.Point;
+
+                        // Cabinet bottom height between 5'-9" and 6'-6"
+                        if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > 6.5)
+                            return false;
+
+                        double horizontalDistance = Math.Sqrt(
+                            Math.Pow(fridgeOrigin.X - cabinetPoint.X, 2) +
+                            Math.Pow(fridgeOrigin.Y - cabinetPoint.Y, 2));
+
+                        return horizontalDistance <= 1.8; // 21.5" tolerance from fridge origin
+                    })
+                    .ToList();
+
                 elementsToDelete.AddRange(wallCabinetsAbove.Select(cab => cab.Id));
+
+                // DEBUG info
+                Utils.TaskDialogInformation("Debug", "Search Results",
+                    $"Found {nearbyOutlets.Count} outlets, {nearbyCWConnections.Count} CW connections, " +
+                    $"{wallCabinetsAbove.Count} wall cabinets to delete");
             }
 
             return elementsToDelete;
+        }
+
+        private Wall FindPerpendicularWall(Document curDoc, Line searchLine, XYZ fridgeOrigin)
+        {
+            // Get all walls in the document
+            var allWalls = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(Wall))
+                .Cast<Wall>()
+                .Where(wall => wall.Location is LocationCurve)
+                .ToList();
+
+            XYZ searchDirection = searchLine.Direction;
+            double closestDistance = double.MaxValue;
+            Wall closestPerpendicularWall = null;
+
+            foreach (Wall wall in allWalls)
+            {
+                LocationCurve wallLoc = wall.Location as LocationCurve;
+                if (wallLoc != null)
+                {
+                    Line wallLine = wallLoc.Curve as Line;
+                    if (wallLine != null)
+                    {
+                        XYZ wallDirection = wallLine.Direction;
+
+                        // Check if wall is perpendicular to search line (dot product near 0)
+                        double dotProduct = Math.Abs(searchDirection.DotProduct(wallDirection));
+                        if (dotProduct < 0.1) // Perpendicular tolerance
+                        {
+                            // Find closest point on wall to fridge origin
+                            XYZ closestPointOnWall = wallLine.Project(fridgeOrigin).XYZPoint;
+                            double distanceToWall = fridgeOrigin.DistanceTo(closestPointOnWall);
+
+                            // Check if this wall is closer and within reasonable distance
+                            if (distanceToWall < closestDistance && distanceToWall < 5.0) // 5' max distance
+                            {
+                                closestDistance = distanceToWall;
+                                closestPerpendicularWall = wall;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return closestPerpendicularWall;
+        }
+
+        private XYZ GetWallSearchPoint(Wall wall, XYZ fridgeOrigin)
+        {
+            LocationCurve wallLoc = wall.Location as LocationCurve;
+            if (wallLoc != null)
+            {
+                Line wallLine = wallLoc.Curve as Line;
+                if (wallLine != null)
+                {
+                    // Project fridge origin onto the wall line to get search point
+                    XYZ projectedPoint = wallLine.Project(fridgeOrigin).XYZPoint;
+                    return projectedPoint;
+                }
+            }
+
+            return fridgeOrigin; // Fallback to fridge origin if wall projection fails
         }
 
         #region Finish Floor Methods
