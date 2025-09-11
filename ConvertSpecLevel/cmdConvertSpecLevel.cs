@@ -526,11 +526,10 @@ namespace ConvertSpecLevel
                 Transform familyTransform = curRefSp.GetTransform();
 
                 // Get the family's local coordinate system directions
-                XYZ familyXDirection = familyTransform.BasisX; // Right direction
+                XYZ familyXDirection = familyTransform.BasisX; // Right/Left direction
                 XYZ familyYDirection = familyTransform.BasisY; // Forward/Back direction
 
-                // For most appliance families, the Center (Left/Right) plane is perpendicular to the X-axis
-                // So we'll use the Y-direction (forward/back) as our search direction
+                // get the Center (L/R) direction (perpendicular to the fridge face)
                 XYZ centerLRDirection = familyYDirection.Normalize();
 
                 // Create line extending 18" in both directions along Center (L/R) reference
@@ -554,7 +553,7 @@ namespace ConvertSpecLevel
                 // Define search area around the wall point
                 double searchRadius = 1.79167; // 21.5" search radius
 
-                // -------- Search for ALL nearby outlets FIRST --------
+                // -------- proximty search for nearby outlets --------
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
                     .OfClass(typeof(FamilyInstance))
@@ -577,12 +576,9 @@ namespace ConvertSpecLevel
                     })
                     .ToList();
 
-                // -------- NOW SELECT ONLY THE CLOSEST OUTLET --------
+                // -------- select outlet closest to fridge origin --------
                 if (nearbyOutlets.Count > 0)
                 {
-                    Utils.TaskDialogInformation("DEBUG", "Before Outlet Selection",
-                        $"Found {nearbyOutlets.Count} outlets in search area. Will select only the closest one.");
-
                     var closestOutlet = nearbyOutlets
                         .OrderBy(outlet =>
                         {
@@ -592,13 +588,10 @@ namespace ConvertSpecLevel
                         .First();
 
                     // Add ONLY the closest outlet to delete list
-                    elementsToDelete.Add(closestOutlet.Id);
-
-                    Utils.TaskDialogInformation("DEBUG", "After Outlet Selection",
-                        $"Added 1 outlet (closest) to delete list. Total elements to delete so far: {elementsToDelete.Count}");
+                    elementsToDelete.Add(closestOutlet.Id);                    
                 }
 
-                // -------- Search for nearby CW connections --------
+                // -------- proximity search for nearby CW connections --------
                 var nearbyCWConnections = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                     .OfClass(typeof(FamilyInstance))
@@ -620,7 +613,7 @@ namespace ConvertSpecLevel
 
                 elementsToDelete.AddRange(nearbyCWConnections.Select(cw => cw.Id));
 
-                // -------- Search for wall cabinets above fridge --------
+                // -------- search for wall cabinets above fridge --------
                 var wallCabinetsAbove = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_Casework)
                     .OfClass(typeof(FamilyInstance))
@@ -653,7 +646,7 @@ namespace ConvertSpecLevel
                 int outletsInArea = nearbyOutlets.Count;
                 int outletsToDelete = nearbyOutlets.Count > 0 ? 1 : 0;
 
-                Utils.TaskDialogInformation("DEBUG", "FINAL ELEMENT COUNT",
+                Utils.TaskDialogInformation("DEBUG", "Final Element Count",
                     $"OUTLETS: Found {outletsInArea} in search area, adding {outletsToDelete} to delete\n" +
                     $"CW CONNECTIONS: Adding {nearbyCWConnections.Count} to delete\n" +
                     $"WALL CABINETS: Adding {wallCabinetsAbove.Count} to delete\n" +
