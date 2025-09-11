@@ -19,7 +19,7 @@ namespace ConvertSpecLevel
             #region Ref Sp cleanup
 
             // get a first floor electrical view
-            View curElecView = Utils.GetViewByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor");
+            View curElecView = Utils.GetViewByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor", "Floor");
 
             // check for null
             if (curElecView != null)
