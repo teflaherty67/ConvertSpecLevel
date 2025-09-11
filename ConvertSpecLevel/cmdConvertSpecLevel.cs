@@ -18,10 +18,25 @@ namespace ConvertSpecLevel
 
             #region Ref Sp cleanup
 
+            // get a first floor electrical view
+            View curElecView = Utils.GetViewByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor");
+
+            // check for null
+            if (curElecView != null)
+            {
+                // set it as active view
+                uidoc.ActiveView = curElecView;
+            }
+            else
+            {
+                // if null notify the user
+                Utils.TaskDialogWarning("Warning", "Spec Conversion", "No view found with name containing 'Electrical' and associated level 'First Floor'");
+            }
+
             // check for instance of new Ref Sp family
             bool isNewRefSpPresent = Utils.IsFamilyInstancePresent(curDoc, "LD_GR_Kitchen_Ref-Sp");
 
-            // if not found, delete any existing Ref Sp, CW, outlet, & wall cabinet
+            // if not found, delete any existing Ref Sp, CW connection, outlet, & wall cabinet (if present)
             if (!isNewRefSpPresent)
             {
                 // get the exisitng Ref Sp instance & supporting elements to delete
@@ -554,7 +569,7 @@ namespace ConvertSpecLevel
                     .Where(outlet =>
                     {
                         // Filter for only "Outlet-Duplex" type fixtures
-                        if (outlet.Symbol.Name != "Outlet-Duplex") return false;
+                        if (outlet.Symbol.Name != "Outlet-Ref Sp") return false;
 
                         LocationPoint outletLoc = outlet.Location as LocationPoint;
                         if (outletLoc == null) return false;
