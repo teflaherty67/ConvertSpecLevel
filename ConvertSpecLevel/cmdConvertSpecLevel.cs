@@ -611,11 +611,12 @@ namespace ConvertSpecLevel
                         if (cabinetPoint.Z < 5.75 || cabinetPoint.Z > 6.5)
                             return false;
 
+                        // Use wallSearchPoint instead of fridgeOrigin for better positioning
                         double horizontalDistance = Math.Sqrt(
-                            Math.Pow(fridgeOrigin.X - cabinetPoint.X, 2) +
-                            Math.Pow(fridgeOrigin.Y - cabinetPoint.Y, 2));
+                            Math.Pow(wallSearchPoint.X - cabinetPoint.X, 2) +
+                            Math.Pow(wallSearchPoint.Y - cabinetPoint.Y, 2));
 
-                        return horizontalDistance <= 1.8; // 21.5" tolerance from fridge origin
+                        return horizontalDistance <= 1.8; // 21.5" tolerance from wall search point
                     })
                     .ToList();
 
