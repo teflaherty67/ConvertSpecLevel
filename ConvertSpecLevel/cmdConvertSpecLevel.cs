@@ -533,13 +533,6 @@ namespace ConvertSpecLevel
                 // So we'll use the Y-direction (forward/back) as our search direction
                 XYZ centerLRDirection = familyYDirection.Normalize();
 
-                // DEBUG: Show the family orientation
-                Utils.TaskDialogInformation("Debug", "Family Orientation",
-                    $"Family: {curRefSp.Symbol.Family.Name}\n" +
-                    $"X Direction: ({familyXDirection.X:F2}, {familyXDirection.Y:F2}, {familyXDirection.Z:F2})\n" +
-                    $"Y Direction: ({familyYDirection.X:F2}, {familyYDirection.Y:F2}, {familyYDirection.Z:F2})\n" +
-                    $"Search Direction: ({centerLRDirection.X:F2}, {centerLRDirection.Y:F2}, {centerLRDirection.Z:F2})");
-
                 // Create line extending 18" in both directions along Center (L/R) reference
                 double searchDistance = 1.5; // 18" in feet
                 XYZ startPoint = fridgeOrigin - (centerLRDirection * searchDistance);
@@ -559,9 +552,9 @@ namespace ConvertSpecLevel
                 XYZ wallSearchPoint = GetWallSearchPoint(perpendicularWall, fridgeOrigin);
 
                 // Define search area around the wall point
-                double searchRadius = 1.625; // 19.5" search radius
+                double searchRadius = 1.79167; // 21.5" search radius
 
-                // -------- Search for nearby outlets --------
+                // -------- Search for ALL nearby outlets FIRST --------
                 var nearbyOutlets = new FilteredElementCollector(curDoc)
                     .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
                     .OfClass(typeof(FamilyInstance))
@@ -569,7 +562,7 @@ namespace ConvertSpecLevel
                     .Where(outlet =>
                     {
                         // Filter for only "Outlet-Duplex" type fixtures
-                        if (outlet.Symbol.Name != "Outlet-Ref Sp") return false;
+                        if (outlet.Symbol.Name != "Outlet-Duplex") return false;
 
                         LocationPoint outletLoc = outlet.Location as LocationPoint;
                         if (outletLoc == null) return false;
@@ -584,7 +577,26 @@ namespace ConvertSpecLevel
                     })
                     .ToList();
 
-                elementsToDelete.AddRange(nearbyOutlets.Select(o => o.Id));
+                // -------- NOW SELECT ONLY THE CLOSEST OUTLET --------
+                if (nearbyOutlets.Count > 0)
+                {
+                    Utils.TaskDialogInformation("DEBUG", "Before Outlet Selection",
+                        $"Found {nearbyOutlets.Count} outlets in search area. Will select only the closest one.");
+
+                    var closestOutlet = nearbyOutlets
+                        .OrderBy(outlet =>
+                        {
+                            LocationPoint outletLoc = outlet.Location as LocationPoint;
+                            return fridgeOrigin.DistanceTo(outletLoc.Point);
+                        })
+                        .First();
+
+                    // Add ONLY the closest outlet to delete list
+                    elementsToDelete.Add(closestOutlet.Id);
+
+                    Utils.TaskDialogInformation("DEBUG", "After Outlet Selection",
+                        $"Added 1 outlet (closest) to delete list. Total elements to delete so far: {elementsToDelete.Count}");
+                }
 
                 // -------- Search for nearby CW connections --------
                 var nearbyCWConnections = new FilteredElementCollector(curDoc)
@@ -631,16 +643,21 @@ namespace ConvertSpecLevel
                             Math.Pow(wallSearchPoint.X - cabinetPoint.X, 2) +
                             Math.Pow(wallSearchPoint.Y - cabinetPoint.Y, 2));
 
-                        return horizontalDistance <= 1.8; // 21.5" tolerance from wall search point
+                        return horizontalDistance <= searchRadius;
                     })
                     .ToList();
 
                 elementsToDelete.AddRange(wallCabinetsAbove.Select(cab => cab.Id));
 
-                // DEBUG info
-                Utils.TaskDialogInformation("Debug", "Search Results",
-                    $"Found {nearbyOutlets.Count} outlets, {nearbyCWConnections.Count} CW connections, " +
-                    $"{wallCabinetsAbove.Count} wall cabinets to delete");
+                // -------- FINAL DEBUG SUMMARY --------
+                int outletsInArea = nearbyOutlets.Count;
+                int outletsToDelete = nearbyOutlets.Count > 0 ? 1 : 0;
+
+                Utils.TaskDialogInformation("DEBUG", "FINAL ELEMENT COUNT",
+                    $"OUTLETS: Found {outletsInArea} in search area, adding {outletsToDelete} to delete\n" +
+                    $"CW CONNECTIONS: Adding {nearbyCWConnections.Count} to delete\n" +
+                    $"WALL CABINETS: Adding {wallCabinetsAbove.Count} to delete\n" +
+                    $"TOTAL ELEMENTS TO DELETE: {elementsToDelete.Count}");
             }
 
             return elementsToDelete;
