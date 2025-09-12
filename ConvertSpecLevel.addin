@@ -2,7 +2,7 @@
 <RevitAddIns>
   <AddIn Type="Command">
     <Text>ConvertSpecLevel - Command 1</Text>
-    <Description>Some description</Description>
+    <Description>Duplicate the Ref Sp outlet and name it "Outlet-Ref Sp" before running the command.</Description>
     <Assembly>ConvertSpecLevel\ConvertSpecLevel.dll</Assembly>
     <FullClassName>ConvertSpecLevel.cmdConvertSpecLevel</FullClassName>
     <ClientId>f6c01874-c687-44a1-9c43-0d2c46883498</ClientId>
