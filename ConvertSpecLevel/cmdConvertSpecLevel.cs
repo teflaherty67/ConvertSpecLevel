@@ -642,15 +642,14 @@ namespace ConvertSpecLevel
 
                 elementsToDelete.AddRange(wallCabinetsAbove.Select(cab => cab.Id));
 
-                // -------- FINAL DEBUG SUMMARY --------
-                int outletsInArea = nearbyOutlets.Count;
+                // -------- FINAL DEBUG SUMMARY --------               
                 int outletsToDelete = nearbyOutlets.Count > 0 ? 1 : 0;
 
                 Utils.TaskDialogInformation("DEBUG", "Final Element Count",
-                    $"OUTLETS: Found {outletsInArea} in search area, adding {outletsToDelete} to delete\n" +
-                    $"CW CONNECTIONS: Adding {nearbyCWConnections.Count} to delete\n" +
-                    $"WALL CABINETS: Adding {wallCabinetsAbove.Count} to delete\n" +
-                    $"TOTAL ELEMENTS TO DELETE: {elementsToDelete.Count}");
+                    $"Outlets: Adding {outletsToDelete} to delete\n" +
+                    $"CW Connections: Adding {nearbyCWConnections.Count} to delete\n" +
+                    $"Wall Cabinets: Adding {wallCabinetsAbove.Count} to delete\n" +
+                    $"Total Elements to Delete: {elementsToDelete.Count}");
             }
 
             return elementsToDelete;
