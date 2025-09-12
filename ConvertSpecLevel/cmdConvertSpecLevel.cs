@@ -658,7 +658,7 @@ namespace ConvertSpecLevel
         private Wall FindPerpendicularWall(Document curDoc, Line searchLine, XYZ fridgeOrigin)
         {
             // Get all walls in the document
-            var allWalls = new FilteredElementCollector(curDoc)
+            var m_allWalls = new FilteredElementCollector(curDoc)
                 .OfClass(typeof(Wall))
                 .Cast<Wall>()
                 .Where(wall => wall.Location is LocationCurve)
@@ -668,9 +668,9 @@ namespace ConvertSpecLevel
             double closestDistance = double.MaxValue;
             Wall closestPerpendicularWall = null;
 
-            foreach (Wall wall in allWalls)
+            foreach (Wall curWall in m_allWalls)
             {
-                LocationCurve wallLoc = wall.Location as LocationCurve;
+                LocationCurve wallLoc = curWall.Location as LocationCurve;
                 if (wallLoc != null)
                 {
                     Line wallLine = wallLoc.Curve as Line;
@@ -690,7 +690,7 @@ namespace ConvertSpecLevel
                             if (distanceToWall < closestDistance && distanceToWall < 5.0) // 5' max distance
                             {
                                 closestDistance = distanceToWall;
-                                closestPerpendicularWall = wall;
+                                closestPerpendicularWall = curWall;
                             }
                         }
                     }
