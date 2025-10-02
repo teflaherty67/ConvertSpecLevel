@@ -34,94 +34,118 @@ namespace ConvertSpecLevel
 
             using (Transaction t = new Transaction(doc, "Place Sprinkler Outlet"))
             {
-                t.Start();
-
-                // Load and activate the sprinkler family symbol
-                FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
-                if (sprinklerSymbol == null)
+                try
                 {
-                    Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_None");
-                    sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
+                    t.Start();
+
+                    // Load and activate the sprinkler family symbol
+                    FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
+                    if (sprinklerSymbol == null)
+                    {
+                        Utils.LoadFamilyFromLibrary(doc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_None");
+                        sprinklerSymbol = Utils.GetFamilySymbolByName(doc, "LD_EF_Recep_None", "Sprinkler");
+                    }
+
+                    if (sprinklerSymbol == null)
+                    {
+                        Utils.TaskDialogError("Error", "Sprinkler Outlet", "Unable to load sprinkler family.");
+                        return Result.Failed;
+                    }
+
+                    if (!sprinklerSymbol.IsActive) sprinklerSymbol.Activate();
+                    doc.Regenerate();
+
+                    // 1. Get garage wall exterior face point
+                    XYZ facePoint = GetWallExteriorStructuralFace(garageWall);
+                    if (facePoint == null)
+                    {
+                        Utils.TaskDialogError("Error", "Sprinkler Outlet", "Could not determine garage wall exterior structural face.");
+                        return Result.Failed;
+                    }
+
+                    // 2. Compute 60" offset in direction of garage wall's orientation (which points OUT)
+                    double offsetFeet = UnitUtils.ConvertToInternalUnits(OFFSET_INCHES, UnitTypeId.Inches);
+                    XYZ garageToOutletDir = -garageWall.Orientation; // Going inward from garage face
+                    XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
+
+                    // 3. Final outlet point at 18" AFF
+                    double height = UnitUtils.ConvertToInternalUnits(HEIGHT_INCHES, UnitTypeId.Inches);
+                    XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, height);
+
+                    // 4. Place the outlet
+                    Level level = doc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
+                    FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, level, StructuralType.NonStructural);
+
+                    // Set the offset parameters to 0
+                    Parameter offsetFromHost = outletInstance.LookupParameter("Offset from Host");
+                    if (offsetFromHost != null && !offsetFromHost.IsReadOnly)
+                    {
+                        offsetFromHost.Set(0.0);
+                    }
+
+                    Parameter elevFromLevel = outletInstance.LookupParameter("Elevation from Level");
+                    if (elevFromLevel != null && !elevFromLevel.IsReadOnly)
+                    {
+                        elevFromLevel.Set(0.0);
+                    }
+
+                    // 5. Get face references
+                    Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
+                    Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
+
+                    // 6. Create dimension if both references exist
+                    if (garageFaceRef != null && outletCenterRef != null)
+                    {
+                        ReferenceArray dimRefs = new ReferenceArray();
+                        dimRefs.Append(garageFaceRef);
+                        dimRefs.Append(outletCenterRef);
+
+                        // Direction perpendicular to the outlet wall (i.e., facing OUTSIDE)
+                        XYZ outletWallNormal = outletWall.Orientation; // Revit defines this as exterior direction
+
+                        // Offset dimension line in that direction
+                        XYZ dimOffset = outletWallNormal * DIM_LINE_OFFSET_FEET;
+
+                        // Flatten to plan view (Z = 0)
+                        XYZ p1 = new XYZ((facePoint + dimOffset).X, (facePoint + dimOffset).Y, 0);
+                        XYZ p2 = new XYZ((outletPoint + dimOffset).X, (outletPoint + dimOffset).Y, 0);
+                        Line dimLine = Line.CreateBound(p1, p2);
+
+                        doc.Create.NewDimension(planView, dimLine, dimRefs);
+                    }
+
+                    // 7. Place tag
+
+                    // Tag expects a Reference to the instance itself when using TagMode.TM_ADDBY_CATEGORY
+                    Reference tagRef = new Reference(outletInstance);
+
+                    // Offset direction: move tag away from outlet wall face (using wall orientation)
+                    XYZ tagDirection = outletWall.Orientation; // This points toward the exterior of the outlet wall
+                    XYZ tagOffset = tagDirection * 2.0 + new XYZ(0, 0, 2.0); // 2 ft away, lifted slightly in Z
+                    XYZ tagPosition = outletPoint + tagOffset;
+
+                    IndependentTag tag = IndependentTag.Create(doc, planView.Id,
+                        tagRef,
+                        true,
+                        TagMode.TM_ADDBY_CATEGORY,
+                        TagOrientation.Horizontal,
+                        tagPosition);
+
+                    if (tag != null)
+                    {
+                        tag.LeaderEndCondition = LeaderEndCondition.Free;
+                    }
+
+                    t.Commit();
+
                 }
-
-                if (sprinklerSymbol == null)
+                catch (Exception ex)
                 {
-                    Utils.TaskDialogError("Error", "Sprinkler Outlet", "Unable to load sprinkler family.");
+                    TaskDialog.Show("Error Details", ex.Message + "\n\n" + ex.StackTrace);
+                    t.RollBack();
                     return Result.Failed;
                 }
-
-                if (!sprinklerSymbol.IsActive) sprinklerSymbol.Activate();
-                doc.Regenerate();
-
-                // 1. Get garage wall exterior face point
-                XYZ facePoint = GetWallExteriorStructuralFace(garageWall);
-                if (facePoint == null)
-                {
-                    Utils.TaskDialogError("Error", "Sprinkler Outlet", "Could not determine garage wall exterior structural face.");
-                    return Result.Failed;
-                }
-
-                // 2. Compute 60" offset in direction of garage wall's orientation (which points OUT)
-                double offsetFeet = UnitUtils.ConvertToInternalUnits(OFFSET_INCHES, UnitTypeId.Inches);
-                XYZ garageToOutletDir = -garageWall.Orientation; // Going inward from garage face
-                XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
-
-                // 3. Final outlet point at 18" AFF
-                double height = UnitUtils.ConvertToInternalUnits(HEIGHT_INCHES, UnitTypeId.Inches);
-                XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, height);
-
-                // 4. Place the outlet
-                Level level = doc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
-                FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, level, StructuralType.NonStructural);
-
-                // 5. Get face references
-                Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
-                Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
-
-                // 6. Create dimension if both references exist
-                if (garageFaceRef != null && outletCenterRef != null)
-                {
-                    ReferenceArray dimRefs = new ReferenceArray();
-                    dimRefs.Append(garageFaceRef);
-                    dimRefs.Append(outletCenterRef);
-
-                    // Direction perpendicular to the outlet wall (i.e., facing OUTSIDE)
-                    XYZ outletWallNormal = outletWall.Orientation; // Revit defines this as exterior direction
-
-                    // Offset dimension line in that direction
-                    XYZ dimOffset = outletWallNormal * DIM_LINE_OFFSET_FEET;
-
-                    // Flatten to plan view (Z = 0)
-                    XYZ p1 = new XYZ((facePoint + dimOffset).X, (facePoint + dimOffset).Y, 0);
-                    XYZ p2 = new XYZ((outletPoint + dimOffset).X, (outletPoint + dimOffset).Y, 0);
-                    Line dimLine = Line.CreateBound(p1, p2);
-
-                    doc.Create.NewDimension(planView, dimLine, dimRefs);
-                }
-
-                // 7. Place tag
-
-                // Tag expects a Reference to the instance itself when using TagMode.TM_ADDBY_CATEGORY
-                Reference tagRef = new Reference(outletInstance);
-
-                // Offset direction: move tag away from outlet wall face (using wall orientation)
-                XYZ tagDirection = outletWall.Orientation; // This points toward the exterior of the outlet wall
-                XYZ tagOffset = tagDirection * 2.0 + new XYZ(0, 0, 2.0); // 2 ft away, lifted slightly in Z
-                XYZ tagPosition = outletPoint + tagOffset;
-
-                IndependentTag tag = IndependentTag.Create(doc, planView.Id,
-                    tagRef,
-                    true,
-                    TagMode.TM_ADDBY_CATEGORY,
-                    TagOrientation.Horizontal,
-                    tagPosition);
-
-                if (tag != null)
-                {
-                    tag.LeaderEndCondition = LeaderEndCondition.Free;
-                }
-
-                t.Commit();
+                
             }
 
             Utils.TaskDialogInformation("Complete", "Sprinkler Outlet", "Sprinkler outlet placed successfully.");
@@ -194,6 +218,35 @@ namespace ConvertSpecLevel
             }
 
             return null;
+        }
+
+        private XYZ ProjectPointOntoWall(Wall wall, XYZ point)
+        {
+            Options opts = new Options { ComputeReferences = false };
+            GeometryElement geom = wall.get_Geometry(opts);
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+                        // Check if this face is vertical
+                        if (Math.Abs(normal.Z) < 0.01)
+                        {
+                            // Project point onto this face
+                            IntersectionResult result = face.Project(point);
+                            if (result != null)
+                            {
+                                return result.XYZPoint;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null; // Fallback if projection fails
         }
 
         internal static PushButtonData GetButtonData()
