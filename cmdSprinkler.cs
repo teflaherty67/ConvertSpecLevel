@@ -70,9 +70,35 @@ namespace ConvertSpecLevel
 
         }
 
-        private XYZ GetWallExteriorStructuralFace(Wall garageWall)
+        private XYZ GetWallExteriorStructuralFace(Wall wall)
         {
-            throw new NotImplementedException();
+            WallType wallType = wall.Document.GetElement(wall.GetTypeId()) as WallType;
+            CompoundStructure structure = wallType?.GetCompoundStructure();
+            if (structure == null) return null;
+
+            bool hasStructure = structure.GetLayers().Any(l => l.Function == MaterialFunctionAssignment.Structure);
+            if (!hasStructure) return null;
+
+            Options opts = new Options { ComputeReferences = false };
+            GeometryElement geom = wall.get_Geometry(opts);
+            XYZ orientation = wall.Orientation;
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+                        if (Math.Abs(normal.Z) < 0.01 && normal.DotProduct(orientation) > 0.5)
+                        {
+                            return face.Evaluate(new UV(0.5, 0.5));
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         private Wall SelectWall(UIDocument uidoc, string prompt)
