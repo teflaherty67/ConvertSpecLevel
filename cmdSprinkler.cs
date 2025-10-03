@@ -67,17 +67,17 @@ namespace ConvertSpecLevel
                     XYZ garageToOutletDir = -garageWall.Orientation; // Going inward from garage face
                     XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
 
-                // 3. Place outlet at level elevation (Z=0)
-                XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);
+                    // 3. Place outlet at level elevation (Z=0)
+                    XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);
 
                     // 4. Place the outlet
                     Level level = doc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
                     FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, level, StructuralType.NonStructural);
 
                
-                // 5. Get face references
-                Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
-                Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
+                    // 5. Get face references
+                    Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
+                    Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
 
                     // 6. Create dimension if both references exist
                     if (garageFaceRef != null && outletCenterRef != null)
