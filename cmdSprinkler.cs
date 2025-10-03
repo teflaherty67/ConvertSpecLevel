@@ -8,7 +8,6 @@ namespace ConvertSpecLevel
     public class cmdSprinkler : IExternalCommand
     {
         const double OFFSET_INCHES = 60.0;       // Outlet offset from garage wall
-        const double HEIGHT_INCHES = 18.0;       // Outlet AFF
         const double DIM_LINE_OFFSET_FEET = 2.0; // Offset of dimension line itself
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -66,14 +65,14 @@ namespace ConvertSpecLevel
                 XYZ garageToOutletDir = -garageWall.Orientation; // Going inward from garage face
                 XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
 
-                // 3. Final outlet point at 18" AFF
-                double height = UnitUtils.ConvertToInternalUnits(HEIGHT_INCHES, UnitTypeId.Inches);
-                XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, height);
+                // 3. Place outlet at level elevation (Z=0)
+                XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);
 
                 // 4. Place the outlet
                 Level level = doc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
                 FamilyInstance outletInstance = doc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, level, StructuralType.NonStructural);
 
+               
                 // 5. Get face references
                 Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
                 Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
