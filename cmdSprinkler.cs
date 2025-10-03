@@ -14,14 +14,7 @@ namespace ConvertSpecLevel
             UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document curDoc = uidoc.Document;
-
-            // set a first floor electrical plan view as the active view
-
-            // prompt the user to select a wall to place the sprinkler outlet on
-
-            // prompt the user to select a the garage front wall
-
-
+                       
             // get the first electrical plan associated with First Floor level
             View planView = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor").FirstOrDefault();
 
