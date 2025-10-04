@@ -118,8 +118,11 @@ namespace ConvertSpecLevel
             }
 
             // create a transaction group to place the outlet
-            using (Transaction tg = new Transaction(curDoc, "Add Sprinkler Outlet"))
+            using (TransactionGroup tg = new TransactionGroup(curDoc, "Add Sprinkler Outlet"))
             {
+                // start the transaction group
+                tg.Start();
+
                 // activate the outlet family symbol if not already active
                 if (!sprinklerSymbol.IsActive) sprinklerSymbol.Activate();
                 curDoc.Regenerate();
@@ -128,7 +131,32 @@ namespace ConvertSpecLevel
                 if (!tagSymbol.IsActive) tagSymbol.Activate();
                 curDoc.Regenerate();
 
+                // create a transaction to place the outlet
+                using (Transaction  t1 = new Transaction(curDoc, "Place Sprinkler Outlet"))
+                {
+                    // start the transaction
+                    t1.Start();
+                    
+                    // commit the transaction
+                    t1.Commit();
+                }
+
+                // create a transaction to place the annotations
+                using (Transaction t2 = new Transaction(curDoc, "Add Sprinkler Tag and Dimension"))
+                {
+                    // start the transaction
+                    t2.Start();
+
+                    // commit the transaction
+                    t2.Commit();
+                }
+
+                // assimilate the transaction group
+                tg.Assimilate();
             }
+
+            // notify the user of success
+
 
             return Result.Succeeded;
         }
@@ -176,6 +204,5 @@ namespace ConvertSpecLevel
                 return null;
             }
         }
-    }
-   
+    }   
 }
