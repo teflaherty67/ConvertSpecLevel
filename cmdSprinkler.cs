@@ -57,13 +57,9 @@ namespace ConvertSpecLevel
             // create variable for outlet insertion point
             XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);
 
+            // load the sprinkler outlet family if not already loaded
 
-
-
-
-
-
-
+            // load the tag family if not already loaded
 
 
             return Result.Succeeded;
