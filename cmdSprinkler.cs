@@ -1,4 +1,5 @@
-﻿using Autodesk.Revit.DB.Structure;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
 using ConvertSpecLevel.Classes;
 using ConvertSpecLevel.Common;
 using System.Windows.Controls;
@@ -131,12 +132,62 @@ namespace ConvertSpecLevel
                 if (!tagSymbol.IsActive) tagSymbol.Activate();
                 curDoc.Regenerate();
 
+                // get the level to place the outlet on
+                Level outletLevel = curDoc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
+                
                 // create a transaction to place the outlet
                 using (Transaction  t1 = new Transaction(curDoc, "Place Sprinkler Outlet"))
                 {
                     // start the transaction
                     t1.Start();
-                    
+
+                    // create the outlet family instance
+                    FamilyInstance outletInstance = curDoc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletLevel, StructuralType.NonStructural);
+
+                    // get facing of outlet instance
+                    XYZ outletFacing = outletInstance.FacingOrientation;
+
+                    // get facing of outlet wall
+                    XYZ wallFacing = outletWall.Orientation;
+
+                    // normalize both to be safe
+                    outletFacing = outletFacing.Normalize();
+                    wallFacing = wallFacing.Normalize();
+
+                    // set rotation point as the outlet insertion point
+                    LocationPoint loc = outletInstance.Location as LocationPoint;
+                    XYZ origin = loc.Point;
+
+                    // check if rotation is needed
+
+                    double dot = outletFacing.DotProduct(wallFacing);
+
+                    const double angleTolerance = 1e-6;
+
+                    if (Math.Abs(dot - 1) < angleTolerance)
+                    {
+                        // Already aligned – no rotation needed
+                    }
+                    else
+                    {
+                        // Compute the angle between them
+                        double angle = outletFacing.AngleTo(wallFacing); // in radians
+
+                        // Define the axis of rotation: vertical (Z-axis) at the outlet point
+                        Line rotationAxis = Line.CreateBound(outletPoint, outletPoint + XYZ.BasisZ);
+
+                        // Determine rotation direction
+                        // Use cross product to check if angle should be negative (clockwise)
+                        XYZ cross = outletFacing.CrossProduct(wallFacing);
+                        if (cross.Z < 0)
+                        {
+                            angle = -angle;
+                        }
+
+                        // Apply rotation
+                        ElementTransformUtils.RotateElement(curDoc, outletInstance.Id, rotationAxis, angle);
+                    }
+
                     // commit the transaction
                     t1.Commit();
                 }
