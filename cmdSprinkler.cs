@@ -17,6 +17,7 @@ namespace ConvertSpecLevel
             Document curDoc = uidoc.Document;
 
             // variables for sprinkler family
+            FamilySymbol sprinklerSymbol = null;
             string outletFamilyName = "LD_EF_Recep_None";
             string outletTypeName = "Sprinkler";
 #if REVIT2025
@@ -28,6 +29,7 @@ namespace ConvertSpecLevel
 #endif
 
             // variables for tag family
+            FamilySymbol tagSymbol = null;
             string tagFamilyName = "LD_AN_Tag_EF_Type-Comments";
             string tagTypeName = "Type 2";
 #if REVIT2025
@@ -78,45 +80,7 @@ namespace ConvertSpecLevel
             XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
 
             // create variable for outlet insertion point
-            XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);
-
-            // check if the sprinkler outlet family & type is already loaded
-            FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(curDoc, outletFamilyName, outletTypeName);
-            if (sprinklerSymbol == null)
-            {
-                // if not, load it
-                Family loadedFamily = Utils.LoadFamilyFromLibrary(curDoc, outletFilePath, outletFamilyName);
-
-                // check again if the family is loaded
-                sprinklerSymbol = Utils.GetFamilySymbolByName(curDoc, outletFamilyName, outletTypeName);
-            }
-
-            // check if symbol is found
-            if (sprinklerSymbol == null)
-            {
-                // if not, notify the user and exit
-                Utils.TaskDialogError("Error", "Sprinkler Outlet", $"Unable to find type '{outletTypeName}' in family '{outletFamilyName}'.");
-                return Result.Failed;
-            }
-
-            // check if the tag family & type is already loaded
-            FamilySymbol tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
-            if (tagSymbol == null)
-            {
-                // if not, load it
-                Family loadedFamily = Utils.LoadFamilyFromLibrary(curDoc, tagFilePath, tagFamilyName);
-
-                // check again if the family is loaded
-                tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
-            }
-
-            // check if symbol is found
-            if (tagSymbol == null)
-            {
-                // if not, notify the user and exit
-                Utils.TaskDialogError("Error", "Sprinkler Outlet", $"Unable to find type '{tagTypeName}' in family '{tagFamilyName}'.");
-                return Result.Failed;
-            }
+            XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);            
 
             // create a transaction group to place the outlet
             using (TransactionGroup tg = new TransactionGroup(curDoc, "Add Sprinkler Outlet"))
@@ -124,13 +88,61 @@ namespace ConvertSpecLevel
                 // start the transaction group
                 tg.Start();
 
-                // activate the outlet family symbol if not already active
-                if (!sprinklerSymbol.IsActive) sprinklerSymbol.Activate();
-                curDoc.Regenerate();
+                // create a transaction to load the families
+                using (Transaction t = new Transaction(curDoc, "Load Families"))
+                {
+                    // start the transaction
+                    t.Start();
 
-                // activate the outlet family symbol if not already active
-                if (!tagSymbol.IsActive) tagSymbol.Activate();
-                curDoc.Regenerate();
+                    // check if the sprinkler outlet family & type is already loaded
+                    sprinklerSymbol = Utils.GetFamilySymbolByName(curDoc, outletFamilyName, outletTypeName);
+                    if (sprinklerSymbol == null)
+                    {
+                        // if not, load it
+                        Family loadedFamily = Utils.LoadFamilyFromLibrary(curDoc, outletFilePath, outletFamilyName);
+
+                        // check again if the family is loaded
+                        sprinklerSymbol = Utils.GetFamilySymbolByName(curDoc, outletFamilyName, outletTypeName);
+                    }
+
+                    // check if symbol is found
+                    if (sprinklerSymbol == null)
+                    {
+                        // if not, notify the user and exit
+                        Utils.TaskDialogError("Error", "Sprinkler Outlet", $"Unable to find type '{outletTypeName}' in family '{outletFamilyName}'.");
+                        return Result.Failed;
+                    }
+
+                    // activate the outlet family symbol if not already active
+                    if (!sprinklerSymbol.IsActive) sprinklerSymbol.Activate();
+                    curDoc.Regenerate();
+
+                    // check if the tag family & type is already loaded
+                    tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
+                    if (tagSymbol == null)
+                    {
+                        // if not, load it
+                        Family loadedFamily = Utils.LoadFamilyFromLibrary(curDoc, tagFilePath, tagFamilyName);
+
+                        // check again if the family is loaded
+                        tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
+                    }
+
+                    // check if symbol is found
+                    if (tagSymbol == null)
+                    {
+                        // if not, notify the user and exit
+                        Utils.TaskDialogError("Error", "Sprinkler Outlet", $"Unable to find type '{tagTypeName}' in family '{tagFamilyName}'.");
+                        return Result.Failed;
+                    }
+
+                    // activate the outlet family symbol if not already active
+                    if (!tagSymbol.IsActive) tagSymbol.Activate();
+                    curDoc.Regenerate();
+
+                    // commit the transaction
+                    t.Commit();
+                }
 
                 // get the level to place the outlet on
                 Level outletLevel = curDoc.GetElement(planView.get_Parameter(BuiltInParameter.PLAN_VIEW_LEVEL).AsElementId()) as Level;
