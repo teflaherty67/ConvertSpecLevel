@@ -159,7 +159,7 @@ namespace ConvertSpecLevel
                     XYZ wallDirection = wallLine.Direction.Normalize();
 
                     // Get perpendicular vector (90° rotation in XY plane)
-                    XYZ desiredFacing = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+                    XYZ desiredFacing = (-outletWall.Orientation).Normalize(); // Negate to get interior direction
 
                     // Create the outlet instance (same as before)
                     FamilyInstance outletInstance = curDoc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletLevel, StructuralType.NonStructural);
