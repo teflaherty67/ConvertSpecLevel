@@ -153,51 +153,33 @@ namespace ConvertSpecLevel
                     // start the transaction
                     t1.Start();
 
-                    // create the outlet family instance
+                    // Get the wall's location curve
+                    LocationCurve locCurve = outletWall.Location as LocationCurve;
+                    Line wallLine = locCurve.Curve as Line;
+                    XYZ wallDirection = wallLine.Direction.Normalize();
+
+                    // Get perpendicular vector (90° rotation in XY plane)
+                    XYZ desiredFacing = new XYZ(-wallDirection.Y, wallDirection.X, 0);
+
+                    // Create the outlet instance (same as before)
                     FamilyInstance outletInstance = curDoc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletLevel, StructuralType.NonStructural);
 
-                    // get facing of outlet instance
-                    XYZ outletFacing = outletInstance.FacingOrientation;
-
-                    // get facing of outlet wall
-                    XYZ wallFacing = outletWall.Orientation;
-
-                    // normalize both to be safe
-                    outletFacing = outletFacing.Normalize();
-                    wallFacing = wallFacing.Normalize();
-
-                    // set rotation point as the outlet insertion point
-                    LocationPoint loc = outletInstance.Location as LocationPoint;
-                    XYZ origin = loc.Point;
+                    // Get outlet's actual facing after placement
+                    XYZ outletFacing = outletInstance.FacingOrientation.Normalize();
 
                     // check if rotation is needed
 
-                    double dot = outletFacing.DotProduct(wallFacing);
+                    double angle = outletFacing.AngleTo(desiredFacing);
+                    const double angleTolerance = 1e-3;
 
-                    const double angleTolerance = 1e-6;
-
-                    if (Math.Abs(dot - 1) < angleTolerance)
+                    if (angle > angleTolerance)
                     {
-                        // Already aligned – no rotation needed
-                    }
-                    else
-                    {
-                        // Compute the angle between them
-                        double angle = outletFacing.AngleTo(wallFacing); // in radians
-
-                        // Define the axis of rotation: vertical (Z-axis) at the outlet point
-                        Line rotationAxis = Line.CreateBound(outletPoint, outletPoint + XYZ.BasisZ);
-
                         // Determine rotation direction
-                        // Use cross product to check if angle should be negative (clockwise)
-                        XYZ cross = outletFacing.CrossProduct(wallFacing);
-                        if (cross.Z < 0)
-                        {
-                            angle = -angle;
-                        }
+                        XYZ cross = outletFacing.CrossProduct(desiredFacing);
+                        if (cross.Z < 0) angle = -angle;
 
-                        // Apply rotation
-                        ElementTransformUtils.RotateElement(curDoc, outletInstance.Id, rotationAxis, angle);
+                        Line axis = Line.CreateBound(outletPoint, outletPoint + XYZ.BasisZ);
+                        ElementTransformUtils.RotateElement(curDoc, outletInstance.Id, axis, angle);
                     }
 
                     // commit the transaction
