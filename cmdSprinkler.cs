@@ -211,15 +211,24 @@ namespace ConvertSpecLevel
                         dimRefs.Append(garageFaceRef);
                         dimRefs.Append(outletCenterRef);
 
-                        // Direction perpendicular to the outlet wall (i.e., facing OUTSIDE)
-                        XYZ outletWallNormal = outletWall.Orientation; // Revit defines this as exterior direction
+                        // Get the garage wall's direction (parallel to the wall itself)
+                        LocationCurve garageLocCurve = garageWall.Location as LocationCurve;
+                        Line garageWallLine = garageLocCurve.Curve as Line;
+                        XYZ garageWallDir = garageWallLine.Direction.Normalize();
 
-                        // Offset dimension line in that direction
-                        XYZ dimOffset = outletWallNormal * 2;
+                        // Offset perpendicular to garage wall (using wall orientation which points outward)
+                        XYZ offsetDir = garageWall.Orientation.Normalize();
+                        double offsetAmount = 2.0; // 2 feet away from wall
+
+                        // Offset both points by same amount perpendicular to garage wall
+                        XYZ p1 = facePoint + (offsetDir * offsetAmount);
+                        XYZ p2 = outletPoint + (offsetDir * offsetAmount);
 
                         // Flatten to plan view (Z = 0)
-                        XYZ p1 = new XYZ((facePoint + dimOffset).X, (facePoint + dimOffset).Y, 0);
-                        XYZ p2 = new XYZ((outletPoint + dimOffset).X, (outletPoint + dimOffset).Y, 0);
+                        p1 = new XYZ(p1.X, p1.Y, 0);
+                        p2 = new XYZ(p2.X, p2.Y, 0);
+
+                        // Create dimension line parallel to garage wall
                         Line dimLine = Line.CreateBound(p1, p2);
 
                         curDoc.Create.NewDimension(planView, dimLine, dimRefs);
