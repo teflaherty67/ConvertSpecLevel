@@ -79,8 +79,15 @@ namespace ConvertSpecLevel
             XYZ garageToOutletDir = -garageWall.Orientation; // Going inward from garage face
             XYZ offsetPoint = facePoint + (garageToOutletDir * offsetFeet);
 
-            // create variable for outlet insertion point
-            XYZ outletPoint = new XYZ(offsetPoint.X, offsetPoint.Y, 0);            
+            // Project this point onto the outlet wall's interior face
+            XYZ outletPoint = ProjectPointOntoWallInteriorFace(outletWall, offsetPoint);
+
+            // null check
+            if (outletPoint == null)
+            {
+                Utils.TaskDialogError("Error", "Sprinkler Outlet", "Could not project outlet location onto selected wall.");
+                return Result.Failed;
+            }
 
             // create a transaction group to place the outlet
             using (TransactionGroup tg = new TransactionGroup(curDoc, "Add Sprinkler Outlet"))
@@ -153,18 +160,18 @@ namespace ConvertSpecLevel
                     // start the transaction
                     t1.Start();
 
-                    // Get the wall's location curve
+                    // get wall's location curve
                     LocationCurve locCurve = outletWall.Location as LocationCurve;
                     Line wallLine = locCurve.Curve as Line;
                     XYZ wallDirection = wallLine.Direction.Normalize();
 
-                    // Get perpendicular vector (90° rotation in XY plane)
-                    XYZ desiredFacing = (-outletWall.Orientation).Normalize(); // Negate to get interior direction
+                    // 6et perpendicular vector (90° rotation in XY plane)
+                    XYZ desiredFacing = (-outletWall.Orientation).Normalize(); // negate to get interior direction
 
-                    // Create the outlet instance (same as before)
+                    // create outlet instance
                     FamilyInstance outletInstance = curDoc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletLevel, StructuralType.NonStructural);
 
-                    // Get outlet's actual facing after placement
+                    // get outlet's facing after placement
                     XYZ outletFacing = outletInstance.FacingOrientation.Normalize();
 
                     // check if rotation is needed
@@ -174,7 +181,7 @@ namespace ConvertSpecLevel
 
                     if (angle > angleTolerance)
                     {
-                        // Determine rotation direction
+                        // determine rotation direction
                         XYZ cross = outletFacing.CrossProduct(desiredFacing);
                         if (cross.Z < 0) angle = -angle;
 
@@ -204,6 +211,48 @@ namespace ConvertSpecLevel
 
 
             return Result.Succeeded;
+        }
+
+        private XYZ ProjectPointOntoWallInteriorFace(Wall wall, XYZ point)
+        {
+            Options opts = new Options { ComputeReferences = false };
+            GeometryElement geom = wall.get_Geometry(opts);
+            XYZ wallOrientation = wall.Orientation; // Points exterior
+
+            XYZ closestPoint = null;
+            double closestDistance = double.MaxValue;
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+
+                        // Check if vertical face (Z component near 0)
+                        if (Math.Abs(normal.Z) < 0.1)
+                        {
+                            // Project the point onto this face
+                            IntersectionResult result = face.Project(point);
+                            if (result != null)
+                            {
+                                double distance = point.DistanceTo(result.XYZPoint);
+
+                                // Check if this face is pointing toward interior (opposite of wall orientation)
+                                double dotProduct = normal.DotProduct(wallOrientation);
+                                if (dotProduct < 0 && distance < closestDistance)
+                                {
+                                    closestPoint = result.XYZPoint;
+                                    closestDistance = distance;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return closestPoint;
         }
 
         private XYZ GetWallExteriorStructuralFace(Wall wall)
