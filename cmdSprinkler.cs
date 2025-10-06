@@ -18,6 +18,7 @@ namespace ConvertSpecLevel
 
             // variables for sprinkler family
             FamilySymbol sprinklerSymbol = null;
+            FamilyInstance outletInstance = null;
             string outletFamilyName = "LD_EF_Recep_None";
             string outletTypeName = "Sprinkler";
 #if REVIT2025
@@ -169,7 +170,7 @@ namespace ConvertSpecLevel
                     XYZ desiredFacing = (-outletWall.Orientation).Normalize(); // negate to get interior direction
 
                     // create outlet instance
-                    FamilyInstance outletInstance = curDoc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletLevel, StructuralType.NonStructural);
+                    outletInstance = curDoc.Create.NewFamilyInstance(outletPoint, sprinklerSymbol, outletLevel, StructuralType.NonStructural);
 
                     // get outlet's facing after placement
                     XYZ outletFacing = outletInstance.FacingOrientation.Normalize();
@@ -199,6 +200,53 @@ namespace ConvertSpecLevel
                     // start the transaction
                     t2.Start();
 
+                    // get face references
+                    Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
+                    Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
+
+                    // create dimension if both references exist
+                    if (garageFaceRef != null && outletCenterRef != null)
+                    {
+                        ReferenceArray dimRefs = new ReferenceArray();
+                        dimRefs.Append(garageFaceRef);
+                        dimRefs.Append(outletCenterRef);
+
+                        // Direction perpendicular to the outlet wall (i.e., facing OUTSIDE)
+                        XYZ outletWallNormal = outletWall.Orientation; // Revit defines this as exterior direction
+
+                        // Offset dimension line in that direction
+                        XYZ dimOffset = outletWallNormal * 2;
+
+                        // Flatten to plan view (Z = 0)
+                        XYZ p1 = new XYZ((facePoint + dimOffset).X, (facePoint + dimOffset).Y, 0);
+                        XYZ p2 = new XYZ((outletPoint + dimOffset).X, (outletPoint + dimOffset).Y, 0);
+                        Line dimLine = Line.CreateBound(p1, p2);
+
+                        curDoc.Create.NewDimension(planView, dimLine, dimRefs);
+                    }
+
+                    // place tag
+
+                    // Tag expects a Reference to the instance itself when using TagMode.TM_ADDBY_CATEGORY
+                    Reference tagRef = new Reference(outletInstance);
+
+                    // Offset direction: move tag away from outlet wall face (using wall orientation)
+                    XYZ tagDirection = outletWall.Orientation; // This points toward the exterior of the outlet wall
+                    XYZ tagOffset = tagDirection * 2.0 + new XYZ(0, 0, 2.0); // 2 ft away, lifted slightly in Z
+                    XYZ tagPosition = outletPoint + tagOffset;
+
+                    IndependentTag tag = IndependentTag.Create(curDoc, planView.Id,
+                        tagRef,
+                        true,
+                        TagMode.TM_ADDBY_CATEGORY,
+                        TagOrientation.Horizontal,
+                        tagPosition);
+
+                    if (tag != null)
+                    {
+                        tag.LeaderEndCondition = LeaderEndCondition.Free;
+                    }
+
                     // commit the transaction
                     t2.Commit();
                 }
@@ -211,6 +259,30 @@ namespace ConvertSpecLevel
 
 
             return Result.Succeeded;
+        }
+
+        private Reference GetWallExteriorFaceReference(Wall garageWall)
+        {
+            Options opts = new Options { ComputeReferences = true };
+            GeometryElement geom = garageWall.get_Geometry(opts);
+            XYZ orientation = garageWall.Orientation;
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+                        if (Math.Abs(normal.Z) < 0.01 && normal.DotProduct(orientation) > 0.5)
+                        {
+                            return face.Reference;
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         private XYZ ProjectPointOntoWallInteriorFace(Wall wall, XYZ point)
