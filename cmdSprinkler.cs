@@ -211,28 +211,30 @@ namespace ConvertSpecLevel
                         dimRefs.Append(garageFaceRef);
                         dimRefs.Append(outletCenterRef);
 
-                        // Get the garage wall's direction (parallel to the wall itself)
-                        LocationCurve garageLocCurve = garageWall.Location as LocationCurve;
-                        Line garageWallLine = garageLocCurve.Curve as Line;
-                        XYZ garageWallDir = garageWallLine.Direction.Normalize();
+                        // Get outlet wall’s horizontal direction
+                        LocationCurve outletLocCurve = outletWall.Location as LocationCurve;
+                        Line outletLine = outletLocCurve.Curve as Line;
+                        XYZ outletWallDirection = outletLine.Direction.Normalize();
 
-                        // Offset perpendicular to garage wall (using wall orientation which points outward)
-                        XYZ offsetDir = garageWall.Orientation.Normalize();
-                        double offsetAmount = 2.0; // 2 feet away from wall
+                        // Get downward offset vector (perpendicular to outlet wall in XY plane)
+                        XYZ offsetDirection = new XYZ(-outletWallDirection.Y, outletWallDirection.X, 0); // rotate 90° in XY
+                        double offsetAmount = 2.0; // 2 ft
 
-                        // Offset both points by same amount perpendicular to garage wall
-                        XYZ p1 = facePoint + (offsetDir * offsetAmount);
-                        XYZ p2 = outletPoint + (offsetDir * offsetAmount);
+                        // Apply same downward offset to both points
+                        XYZ p1 = facePoint + (offsetDirection * offsetAmount);
+                        XYZ p2 = outletPoint + (offsetDirection * offsetAmount);
 
-                        // Flatten to plan view (Z = 0)
+                        // Flatten both to plan view (Z=0)
                         p1 = new XYZ(p1.X, p1.Y, 0);
                         p2 = new XYZ(p2.X, p2.Y, 0);
 
-                        // Create dimension line parallel to garage wall
+                        // Dimension line parallel to outlet wall (horizontal), 2 ft below
                         Line dimLine = Line.CreateBound(p1, p2);
 
                         curDoc.Create.NewDimension(planView, dimLine, dimRefs);
                     }
+
+
 
                     // place tag
 
