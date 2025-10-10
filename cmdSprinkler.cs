@@ -275,8 +275,6 @@ namespace ConvertSpecLevel
                     t2.Commit();
                 }
 
-
-
                 // assimilate the transaction group
                 tg.Assimilate();
             }
