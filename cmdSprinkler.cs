@@ -197,68 +197,85 @@ namespace ConvertSpecLevel
                 // create a transaction to place the annotations
                 using (Transaction t2 = new Transaction(curDoc, "Add Sprinkler Tag and Dimension"))
                 {
-                    // start the transaction
                     t2.Start();
 
-                    // get face references
+                    // --- DIMENSION ---------------------------------------------------------
                     Reference garageFaceRef = GetWallExteriorFaceReference(garageWall);
-                    Reference outletCenterRef = outletInstance.GetReferences(FamilyInstanceReferenceType.CenterLeftRight).FirstOrDefault();
+                    Reference outletCenterRef = outletInstance
+                        .GetReferences(FamilyInstanceReferenceType.CenterLeftRight)
+                        .FirstOrDefault();
 
-                    // create dimension if both references exist
                     if (garageFaceRef != null && outletCenterRef != null)
                     {
                         ReferenceArray dimRefs = new ReferenceArray();
                         dimRefs.Append(garageFaceRef);
                         dimRefs.Append(outletCenterRef);
 
-                        // Get the garage wall's direction (parallel to the wall itself)
-                        LocationCurve garageLocCurve = garageWall.Location as LocationCurve;
-                        Line garageWallLine = garageLocCurve.Curve as Line;
-                        XYZ garageWallDir = garageWallLine.Direction.Normalize();
+                        // Flatten points to plan Z
+                        double planZ = planView.Origin.Z;
+                        XYZ flatGaragePt = new XYZ(facePoint.X, facePoint.Y, planZ);
+                        XYZ flatOutletPt = new XYZ(outletPoint.X, outletPoint.Y, planZ);
 
-                        // Offset perpendicular to garage wall (using wall orientation which points outward)
-                        XYZ offsetDir = garageWall.Orientation.Normalize();
-                        double offsetAmount = 2.0; // 2 feet away from wall
+                        // Wall orientation vector in XY (parallel to wall)
+                        XYZ wallDir = garageWall.Orientation;
+                        wallDir = new XYZ(wallDir.X, wallDir.Y, 0).Normalize();
 
-                        // Offset both points by same amount perpendicular to garage wall
-                        XYZ p1 = facePoint + (offsetDir * offsetAmount);
-                        XYZ p2 = outletPoint + (offsetDir * offsetAmount);
+                        // Get wall exterior normal from the face reference
+                        // (this is the outward direction from the building)
+                        XYZ exteriorNormal = garageWall.Orientation; // same direction
 
-                        // Flatten to plan view (Z = 0)
-                        p1 = new XYZ(p1.X, p1.Y, 0);
-                        p2 = new XYZ(p2.X, p2.Y, 0);
+                        // Offset direction should be *away* from wall exterior (same as normal)
+                        XYZ offsetDir = exteriorNormal.Normalize();
 
-                        // Create dimension line parallel to garage wall
-                        Line dimLine = Line.CreateBound(p1, p2);
+                        // Use a distinct variable name to avoid conflicts
+                        double dimOffsetExteriorFeet = 2.0; // 2'-0" offset from wall face
+                        XYZ offset = offsetDir * dimOffsetExteriorFeet;
 
+                        // Midpoint between the two references (on plan)
+                        XYZ midPoint = (flatGaragePt + flatOutletPt) * 0.5 + offset;
+
+                        // Dimension line runs parallel to the wall’s direction
+                        XYZ dimDir = wallDir;
+
+                        // Extend dimension line long enough to cross both witness lines
+                        double span = flatGaragePt.DistanceTo(flatOutletPt) + 10.0;
+                        XYZ dimStart = midPoint - dimDir * (span / 2);
+                        XYZ dimEnd = midPoint + dimDir * (span / 2);
+
+                        // Dimension line offset 2' beyond the exterior face
+                        Line dimLine = Line.CreateBound(dimStart, dimEnd);
                         curDoc.Create.NewDimension(planView, dimLine, dimRefs);
                     }
 
-                    // place tag
-
-                    // Tag expects a Reference to the instance itself when using TagMode.TM_ADDBY_CATEGORY
+                    // --- TAG ---------------------------------------------------------------
                     Reference tagRef = new Reference(outletInstance);
 
-                    // Offset direction: move tag away from outlet wall face (using wall orientation)
-                    XYZ tagDirection = outletWall.Orientation; // This points toward the exterior of the outlet wall
-                    XYZ tagOffset = tagDirection * 2.0 + new XYZ(0, 0, 2.0); // 2 ft away, lifted slightly in Z
-                    XYZ tagPosition = outletPoint + tagOffset;
+                    // Place tag 2' away from the outlet wall face and lift 2' up
+                    XYZ tagDir = outletWall.Orientation;
+                    double tagOffsetFeet = 2.0;
+                    XYZ tagOffset = tagDir * tagOffsetFeet + new XYZ(0, 0, 2.0);
+                    XYZ tagPlanPt = new XYZ(outletPoint.X, outletPoint.Y, planView.Origin.Z);
+                    XYZ tagPos = tagPlanPt + tagOffset;
 
-                    IndependentTag tag = IndependentTag.Create(curDoc, planView.Id,
+                    IndependentTag tag = IndependentTag.Create(
+                        curDoc,
+                        planView.Id,
                         tagRef,
                         true,
                         TagMode.TM_ADDBY_CATEGORY,
                         TagOrientation.Horizontal,
-                        tagPosition);
+                        tagPos
+                    );
 
                     if (tag != null)
                     {
                         tag.LeaderEndCondition = LeaderEndCondition.Free;
                     }
 
-                    // commit the transaction
                     t2.Commit();
                 }
+
+
 
                 // assimilate the transaction group
                 tg.Assimilate();
