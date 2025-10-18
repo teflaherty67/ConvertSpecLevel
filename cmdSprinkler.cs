@@ -211,39 +211,33 @@ namespace ConvertSpecLevel
                         dimRefs.Append(garageFaceRef);
                         dimRefs.Append(outletCenterRef);
 
-                        // Flatten points to plan Z
-                        double planZ = planView.Origin.Z;
-                        XYZ flatGaragePt = new XYZ(facePoint.X, facePoint.Y, planZ);
-                        XYZ flatOutletPt = new XYZ(outletPoint.X, outletPoint.Y, planZ);
+                        // ✅ ADD THESE 3 LINES HERE - Get the garage wall face and project outlet onto it
+                        Face garageFace = GetWallExteriorFace(garageWall);
+                        IntersectionResult projection = garageFace.Project(outletPoint);
+                        facePoint = projection?.XYZPoint ?? garageFace.Evaluate(new UV(0.5, 0.5));
 
-                        // Wall orientation vector in XY (parallel to wall)
-                        XYZ wallDir = garageWall.Orientation;
-                        wallDir = new XYZ(wallDir.X, wallDir.Y, 0).Normalize();
+                        // ✅ USE THE WORKING DIMENSION LOGIC FROM OLD VERSION
+                        // Calculate offset direction: perpendicular to the dimension line itself
+                        XYZ dimDirection = (outletPoint - facePoint).Normalize();
 
-                        // Get wall exterior normal from the face reference
-                        // (this is the outward direction from the building)
-                        XYZ exteriorNormal = garageWall.Orientation; // same direction
+                        // Get perpendicular direction (rotate 90 degrees in plan)
+                        XYZ perpendicular1 = new XYZ(-dimDirection.Y, dimDirection.X, 0);
+                        XYZ perpendicular2 = new XYZ(dimDirection.Y, -dimDirection.X, 0);
 
-                        // Offset direction should be *away* from wall exterior (same as normal)
-                        XYZ offsetDir = exteriorNormal.Normalize();
+                        // Test which direction moves away from the garage wall center
+                        XYZ garageWallCenter = (garageWall.Location as LocationCurve).Curve.Evaluate(0.5, true);
+                        double dist1 = garageWallCenter.DistanceTo(outletPoint + perpendicular1);
+                        double dist2 = garageWallCenter.DistanceTo(outletPoint + perpendicular2);
 
-                        // Use a distinct variable name to avoid conflicts
-                        double dimOffsetExteriorFeet = 2.0; // 2'-0" offset from wall face
-                        XYZ offset = offsetDir * dimOffsetExteriorFeet;
+                        // Use the direction that increases distance from garage wall
+                        double DIM_LINE_OFFSET_FEET = 2.0;
+                        XYZ dimOffset = (dist1 > dist2 ? perpendicular1 : perpendicular2) * DIM_LINE_OFFSET_FEET;
 
-                        // Midpoint between the two references (on plan)
-                        XYZ midPoint = (flatGaragePt + flatOutletPt) * 0.5 + offset;
+                        // Flatten to plan view (Z = 0)
+                        XYZ p1 = new XYZ((facePoint + dimOffset).X, (facePoint + dimOffset).Y, 0);
+                        XYZ p2 = new XYZ((outletPoint + dimOffset).X, (outletPoint + dimOffset).Y, 0);
 
-                        // Dimension line runs parallel to the wall’s direction
-                        XYZ dimDir = wallDir;
-
-                        // Extend dimension line long enough to cross both witness lines
-                        double span = flatGaragePt.DistanceTo(flatOutletPt) + 10.0;
-                        XYZ dimStart = midPoint - dimDir * (span / 2);
-                        XYZ dimEnd = midPoint + dimDir * (span / 2);
-
-                        // Dimension line offset 2' beyond the exterior face
-                        Line dimLine = Line.CreateBound(dimStart, dimEnd);
+                        Line dimLine = Line.CreateBound(p1, p2);
                         curDoc.Create.NewDimension(planView, dimLine, dimRefs);
                     }
 
