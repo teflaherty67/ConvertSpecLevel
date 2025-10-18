@@ -382,6 +382,50 @@ namespace ConvertSpecLevel
             return null;
         }
 
+        private Face GetWallExteriorFace(Wall wall)
+        {
+            WallType wallType = wall.Document.GetElement(wall.GetTypeId()) as WallType;
+            CompoundStructure structure = wallType?.GetCompoundStructure();
+
+            if (structure == null) return null;
+
+            bool hasStructure = structure.GetLayers().Any(l => l.Function == MaterialFunctionAssignment.Structure);
+
+            if (!hasStructure) return null;
+
+            Options opts = new Options { ComputeReferences = false };
+
+            GeometryElement geom = wall.get_Geometry(opts);
+            XYZ orientation = wall.Orientation;
+
+            Face bestFace = null;
+            double maxDotProduct = 0.5;
+
+            foreach (GeometryObject obj in geom)
+            {
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    foreach (Face face in solid.Faces)
+                    {
+                        XYZ normal = face.ComputeNormal(new UV(0.5, 0.5));
+
+                        if (Math.Abs(normal.Z) < 0.01)
+                        {
+                            double dotProduct = normal.DotProduct(orientation);
+
+                            if (dotProduct > maxDotProduct)
+                            {
+                                maxDotProduct = dotProduct;
+                                bestFace = face;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return bestFace;
+        }
+
         private Wall SelectWall(UIDocument uidoc, string prompt)
         {
             try
