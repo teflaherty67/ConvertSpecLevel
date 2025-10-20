@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConvertSpecLevel"
         mc:Ignorable="d"
-        Title="Convert Spec Level" Height="220" Width="320"
+        Title="Convert Spec Level" Height="250" Width="320"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False">    
@@ -49,9 +49,17 @@
             </StackPanel>
         </StackPanel>        
 
-        <!--Dynamic Row 1-->
-        
-       
+        <!--Dynamic Row -->
+        <Grid x:Name="spDynamicRow" Grid.Row="4" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="85"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Select outlet to remove:" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <Button Grid.Column="1" x:Name="btnDynamicRow" Content="Select" Width="75" Height="25" HorizontalAlignment="Left" Click="btnDynamicRow_Click"/>
+        </Grid>
+
+
         <!--Buttons Section-->
         <StackPanel Grid.Row="7" 
            Orientation="Horizontal" 
