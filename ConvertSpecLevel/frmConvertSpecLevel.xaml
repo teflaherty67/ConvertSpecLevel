@@ -49,11 +49,19 @@
             </StackPanel>
         </StackPanel>
 
-        <!--Dynamic Row 1-->
+        <!--Dynamic Row-->
+        <Grid x:Name="spDynamicRow" Grid.Row="3" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="85"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Select outlet to remove:" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <Button Grid.Column="1" x:Name="btnDynamicRow" Content="Select" Width="75" Height="25" HorizontalAlignment="Left" Click="btnDynamicRow_Click"/>
+        </Grid>
 
 
         <!--Buttons Section-->
-        <StackPanel Grid.Row="7" 
+        <StackPanel Grid.Row="5" 
            Orientation="Horizontal" 
            HorizontalAlignment="Right" 
            VerticalAlignment="Center">
