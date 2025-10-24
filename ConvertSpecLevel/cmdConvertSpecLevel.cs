@@ -469,60 +469,7 @@ namespace ConvertSpecLevel
             return Result.Succeeded;
         }
 
-        private void ReplaceCabinetFillers(Document curDoc, string fillerHeight)
-        {
-            // load the new filler families
-            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_Filler");
-
-            // get all wall fillers in the document
-            List<FamilyInstance> m_allWallFillers = GetAllWallFillers(curDoc);
-
-            // loop through all wall fillers
-            foreach (FamilyInstance curFiller in  m_allWallFillers)
-            {
-                // create string variable for new filler family name
-                string newFillerFamilyName = "LD_CW_Wall_Filler";
-
-                // get the current filler type name
-                string curFillerTypeName = curFiller.Symbol.Name;
-
-                // get the new filler type based on the spec level height
-                string[] curDimensions = curFillerTypeName.Split('x');
-                string curWidth = curDimensions[0].Trim();
-                string newFillerTypeName = curWidth + "x" + fillerHeight + "\"";
-
-                // add filler replacement logic
-                FamilySymbol newFillerType = Utils.GetFamilySymbolByName(curDoc, newFillerFamilyName, newFillerTypeName);
-
-                // null check for the new cabinet type
-                if (newFillerType == null)
-                {
-                    Utils.TaskDialogError("Error", "Spec Conversion", $"Filler type '{newFillerTypeName}' not found in the project after loading family.");
-                    continue;
-                }
-
-                // check if the new cabinet type is active
-                if (!newFillerType.IsActive)
-                {
-                    newFillerType.Activate();
-                }
-
-                // replace the cabinet type
-                curFiller.Symbol = newFillerType;
-            }
-        }
-
-        private List<FamilyInstance> GetAllWallFillers(Document curDoc)
-        {
-            // get all wall cabinets in the document
-            return new FilteredElementCollector(curDoc)
-                .OfCategory(BuiltInCategory.OST_Casework)
-                .OfClass(typeof(FamilyInstance))
-                .Cast<FamilyInstance>()
-                .Where(cab => (cab.Symbol.Family.Name.Contains("Filler")) &&
-                 cab.Symbol.Name.Split('x').Length == 2)
-                .ToList();
-        }
+        #region Ref Sp Cleanup Methods
 
         private List<ElementId> GetElementsToDelete(Document curDoc)
         {
@@ -747,7 +694,7 @@ namespace ConvertSpecLevel
             return fridgeOrigin; // Fallback to fridge origin if wall projection fails
         }
 
-
+        #endregion
 
         #region Finish Floor Methods
 
@@ -1429,6 +1376,61 @@ namespace ConvertSpecLevel
                 .Cast<FamilyInstance>()
                 .Where(cab => (cab.Symbol.Family.Name.Contains("Upper") ||
                  cab.Symbol.Family.Name.Contains("Wall")) &&
+                 cab.Symbol.Name.Split('x').Length == 2)
+                .ToList();
+        }
+
+        private void ReplaceCabinetFillers(Document curDoc, string fillerHeight)
+        {
+            // load the new filler families
+            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_Filler");
+
+            // get all wall fillers in the document
+            List<FamilyInstance> m_allWallFillers = GetAllWallFillers(curDoc);
+
+            // loop through all wall fillers
+            foreach (FamilyInstance curFiller in m_allWallFillers)
+            {
+                // create string variable for new filler family name
+                string newFillerFamilyName = "LD_CW_Wall_Filler";
+
+                // get the current filler type name
+                string curFillerTypeName = curFiller.Symbol.Name;
+
+                // get the new filler type based on the spec level height
+                string[] curDimensions = curFillerTypeName.Split('x');
+                string curWidth = curDimensions[0].Trim();
+                string newFillerTypeName = curWidth + "x" + fillerHeight + "\"";
+
+                // add filler replacement logic
+                FamilySymbol newFillerType = Utils.GetFamilySymbolByName(curDoc, newFillerFamilyName, newFillerTypeName);
+
+                // null check for the new cabinet type
+                if (newFillerType == null)
+                {
+                    Utils.TaskDialogError("Error", "Spec Conversion", $"Filler type '{newFillerTypeName}' not found in the project after loading family.");
+                    continue;
+                }
+
+                // check if the new cabinet type is active
+                if (!newFillerType.IsActive)
+                {
+                    newFillerType.Activate();
+                }
+
+                // replace the cabinet type
+                curFiller.Symbol = newFillerType;
+            }
+        }
+
+        private List<FamilyInstance> GetAllWallFillers(Document curDoc)
+        {
+            // get all wall cabinets in the document
+            return new FilteredElementCollector(curDoc)
+                .OfCategory(BuiltInCategory.OST_Casework)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(cab => (cab.Symbol.Family.Name.Contains("Filler")) &&
                  cab.Symbol.Name.Split('x').Length == 2)
                 .ToList();
         }
