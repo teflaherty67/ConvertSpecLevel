@@ -92,6 +92,11 @@ namespace ConvertSpecLevel
                 string selectedClient = curForm.GetSelectedClient();
                 string selectedSpecLevel = curForm.GetSelectedSpecLevel();
 
+
+                Reference selectedOutlet = curForm.SelectedOutlet;
+                Reference selectedSprinklerWall = curForm.SelectedOutletWall;
+                Reference selectedGarageWall = curForm.SelectedGarageWall;
+               
                 #endregion
 
                 #region Transaction Group
@@ -265,6 +270,31 @@ namespace ConvertSpecLevel
 
                     #region General Electrical Setup
 
+                    // variables for sprinkler family
+            FamilySymbol sprinklerSymbol = null;
+            FamilyInstance outletInstance = null;
+            string outletFamilyName = "LD_EF_Recep_None";
+            string outletTypeName = "Sprinkler";
+#if REVIT2025
+            string outletFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical";
+#endif
+
+#if REVIT2026
+            string outletFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2026\Electrical";
+#endif
+
+            // variables for tag family
+            FamilySymbol tagSymbol = null;
+            string tagFamilyName = "LD_AN_Tag_EF_Type-Comments";
+            string tagTypeName = "Type 2";
+#if REVIT2025
+            string tagFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation\Tags";
+#endif
+
+#if REVIT2026
+            string tagFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2026\Annotation\Tags";
+#endif
+
                     // get all electrical plan views
                     List<View> electricalViews = Utils.GetAllViewsByNameContains(curDoc, "Electrical");
 
@@ -302,11 +332,11 @@ namespace ConvertSpecLevel
                             // add/remove the ceiling fan note in the views
                             var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
-                            //// add/remove the sprinkler outlet in the Garage
-                            //ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
+                            // add/remove the sprinkler outlet in the Garage
+                            ManageSprinklerOutlet(curDoc, uidoc, selectedSpecLevel, selectedSprinklerWall, selectedGarageWall, selectedOutlet);
 
-                            //// add/remove sprinkler outlet note
-                            //RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
+                            // add/remove sprinkler outlet note
+                            RemoveSprinklerOutletNote(curDoc, uidoc, selectedSpecLevel, firstFloorElecViews);
 
                             // commit the transaction
                             t.Commit();
