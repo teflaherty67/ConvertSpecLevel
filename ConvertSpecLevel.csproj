@@ -13,6 +13,7 @@
 	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	<NoWarn>$(NoWarn);CS0219</NoWarn>
 </PropertyGroup>
 
 <PropertyGroup Condition="$(Configuration.Contains('R24'))">
