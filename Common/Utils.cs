@@ -685,8 +685,32 @@ namespace ConvertSpecLevel.Common
                 .Any(fi => fi.Symbol.Family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase));
         }
 
-        
-
         #endregion
+
+        internal static Wall SelectWall(UIDocument uidoc, string prompt)
+        {
+            try
+            {
+                Reference picked = uidoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), prompt);
+                return uidoc.Document.GetElement(picked.ElementId) as Wall;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        internal class WallSelectionFilter : ISelectionFilter
+        {
+            public bool AllowElement(Element elem)
+            {
+                return elem is Wall; // Allows only Wall elements to be selected
+            }
+
+            public bool AllowReference(Reference reference, XYZ position)
+            {
+                return false;
+            }
+        }
     }
 }

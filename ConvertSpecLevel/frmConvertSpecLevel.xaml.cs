@@ -42,9 +42,11 @@ namespace ConvertSpecLevel
         #region Constructors
 
         // Constructor 1: initial form - no selections
-        public frmConvertSpecLevel()
+        public frmConvertSpecLevel(Document curDoc, UIDocument uidoc)
         {
             InitializeComponent();
+
+            UIDoc = uidoc;
 
             // intitilize form with populated combo boxes
             InitializeForm();
@@ -190,21 +192,26 @@ namespace ConvertSpecLevel
             {
                 this.Hide();
 
-                // check if the active view is a view plan type
-                if (CurDoc.ActiveView.ViewType != ViewType.FloorPlan)
+                // get the first electrical plan associated with First Floor level
+                View planView = Utils.GetAllViewsByNameContainsAndAssociatedLevel(CurDoc, "Electrical", "First Floor").FirstOrDefault();
+
+                // null check
+                if (planView == null)
                 {
-                    Utils.TaskDialogInformation("Information", "Spec Conversion", "Please switch to a floor plan view to select the wall for the sprinkler outlet.");
+                    // notify the user and exit
+                    Utils.TaskDialogError("Error", "Sprinkler Outlet", "No First Floor electrical plan found.");
                     return;
                 }
 
-                // prompt the user to select the wall for the sprinkler outlet
-                SelectedOutletWall = UIDoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select wall for sprinkler outlet.");
+                // set it as the active view
+                UIDoc.ActiveView = planView;
 
-                // cast the selected element to a Wall
-                Wall selectedWall = CurDoc.GetElement(SelectedOutletWall.ElementId) as Wall;
+                // prompt the user to select the wall to host the sprinkler outlet
+                Wall outletWall = Utils.SelectWall(UIDoc, "Select wall to host sprinkler outlet.");
+                if (outletWall == null) return;
 
                 // verify the selected element is a wall
-                if (selectedWall == null)
+                if (outletWall == null)
                 {
                     Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
                     this.Show();
@@ -229,14 +236,12 @@ namespace ConvertSpecLevel
         {
             try
             {
-                // prompt the user to select the wall for the sprinkler outlet
-                SelectedGarageWall = UIDoc.Selection.PickObject(ObjectType.Element, new WallSelectionFilter(), "Select front wall of Garage.");
-
-                // cast the selected element to a Wall
-                Wall selectedWall = CurDoc.GetElement(SelectedGarageWall.ElementId) as Wall;
+                // prompt the user to select the front garage wall
+                Wall garageWall = Utils.SelectWall(UIDoc, "Select front garage wall.");
+                if (garageWall == null) return;
 
                 // verify the selected element is a wall
-                if (selectedWall == null)
+                if (garageWall == null)
                 {
                     Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
                     return;

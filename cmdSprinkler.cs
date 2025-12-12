@@ -166,7 +166,7 @@ namespace ConvertSpecLevel
                     Line wallLine = locCurve.Curve as Line;
                     XYZ wallDirection = wallLine.Direction.Normalize();
 
-                    // 6et perpendicular vector (90° rotation in XY plane)
+                    // get perpendicular vector (90° rotation in XY plane)
                     XYZ desiredFacing = (-outletWall.Orientation).Normalize(); // negate to get interior direction
 
                     // create outlet instance

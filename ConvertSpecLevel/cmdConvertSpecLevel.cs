@@ -77,7 +77,7 @@ namespace ConvertSpecLevel
                 #region Form
 
                 // launch the form
-                frmConvertSpecLevel curForm = new frmConvertSpecLevel();
+                frmConvertSpecLevel curForm = new frmConvertSpecLevel(curDoc, uidoc);
                 curForm.Topmost = true;
 
                 curForm.ShowDialog();
