@@ -15,4 +15,4 @@ global using Icon = Autodesk.Revit.UI.TaskDialogIcon;
 global using Label = System.Windows.Controls.Label;
 global using MessageBox = System.Windows.MessageBox;
 global using Line = Autodesk.Revit.DB.Line;
-global using Visibility = System.Windows.Visibility;
+global using WpfVisibility = System.Windows.Visibility;

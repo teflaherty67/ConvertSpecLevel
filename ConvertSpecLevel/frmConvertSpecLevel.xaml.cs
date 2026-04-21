@@ -178,7 +178,7 @@ namespace ConvertSpecLevel
                 btnDynamicRow.Content = "Selected";
                 btnDynamicRow.IsEnabled = true;
 
-                this.Visibility = Visibility.Visible;
+                this.Visibility = System.Windows.Visibility.Visible;
             }
             catch (Exception ex)
             {
@@ -215,7 +215,7 @@ namespace ConvertSpecLevel
                 if (outletWall == null)
                 {
                     Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
-                    this.Show();
+                    this.Visibility = System.Windows.Visibility.Visible;
                     return;
                 }
 
@@ -224,11 +224,11 @@ namespace ConvertSpecLevel
             catch (OperationCanceledException)
             {
                 // User pressed Esc or cancelled - just show the form again, no error message needed
-                this.Visibility = Visibility.Visible;
+                this.Visibility = System.Windows.Visibility.Visible;
             }
             catch (Exception ex)
             {
-                this.Visibility = Visibility.Visible;
+                this.Visibility = System.Windows.Visibility.Visible;
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
@@ -252,16 +252,16 @@ namespace ConvertSpecLevel
                 btnDynamicRow.IsEnabled = true;
 
                 // show the form again
-                this.Visibility = Visibility.Visible;
+                this.Visibility = System.Windows.Visibility.Visible;
             }
             catch (OperationCanceledException)
             {
                 // User pressed Esc or cancelled - just show the form again, no error message needed
-                this.Visibility = Visibility.Visible;
+                this.Visibility = System.Windows.Visibility.Visible;
             }
             catch (Exception ex)
             {
-                this.Visibility = Visibility.Visible;
+                this.Visibility = System.Windows.Visibility.Visible;
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
