@@ -39,14 +39,15 @@ namespace ConvertSpecLevel
 
 
 
-        #region Constructors
+        #region Constructor
 
         // Constructor 1: initial form - no selections
-        public frmConvertSpecLevel(Document curDoc, UIDocument uidoc)
+        public frmConvertSpecLevel(Document curDoc, UIDocument uiDoc)
         {
             InitializeComponent();
 
-            UIDoc = uidoc;
+            CurDoc = curDoc;
+            UIDoc = uiDoc;
 
             // intitilize form with populated combo boxes
             InitializeForm();
@@ -177,7 +178,7 @@ namespace ConvertSpecLevel
                 btnDynamicRow.Content = "Selected";
                 btnDynamicRow.IsEnabled = true;
 
-                this.Show();
+                this.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
             {
@@ -223,11 +224,11 @@ namespace ConvertSpecLevel
             catch (OperationCanceledException)
             {
                 // User pressed Esc or cancelled - just show the form again, no error message needed
-                this.Show();
+                this.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
             {
-                this.Show();
+                this.Visibility = Visibility.Visible;
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
@@ -251,16 +252,16 @@ namespace ConvertSpecLevel
                 btnDynamicRow.IsEnabled = true;
 
                 // show the form again
-                this.Show();
+                this.Visibility = Visibility.Visible;
             }
             catch (OperationCanceledException)
             {
                 // User pressed Esc or cancelled - just show the form again, no error message needed
-                this.Show();
+                this.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
             {
-                this.Show();
+                this.Visibility = Visibility.Visible;
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
