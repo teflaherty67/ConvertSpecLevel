@@ -444,69 +444,61 @@ namespace ConvertSpecLevel
                     // get all views with Electrical in the name & associated with the Second Floor
                     List<View> secondFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "Second Floor");
 
-                    // get the first view in the list and set it as the active view
+                    // only process second floor updates if views exist (1-story plans have none)
                     if (secondFloorElecViews.Any())
                     {
                         uidoc.ActiveView = secondFloorElecViews.First();
-                    }
-                    else
-                    {
-                        // if not found alert the user
-                        Utils.TaskDialogError("Error", "Spec Conversion", "No Electrical views found for Second Floor");
-                    }
 
-                    // create transaction for Second Floor Electrical updates
-                    using (Transaction t = new Transaction(curDoc, "Update Second Floor Electrical"))
-                    {
-
-                        // start the transaction
-                        t.Start();
-
-                        // replace the light fixtures in the specified rooms per the selected spec level
-                        var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
-
-                        // add/remove the ceiling fan note in the views
-                        var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, secondFloorElecViews);
-
-                        // commit the transaction
-                        t.Commit();
-
-                        // Show summary message with proper grammar
-                        string roomList;
-                        if (roomsUpdated.Count == 0)
+                        // create transaction for Second Floor Electrical updates
+                        using (Transaction t = new Transaction(curDoc, "Update Second Floor Electrical"))
                         {
-                            roomList = "No rooms";
+                            t.Start();
+
+                            // replace the light fixtures in the specified rooms per the selected spec level
+                            var (roomsUpdated, fixtureCount) = UpdateLightingFixturesInActiveView(curDoc, selectedSpecLevel);
+
+                            // add/remove the ceiling fan note in the views
+                            var (added, deleted, viewCount) = ManageClgFanNotes(curDoc, uidoc, selectedSpecLevel, secondFloorElecViews);
+
+                            t.Commit();
+
+                            // Show summary message with proper grammar
+                            string roomList;
+                            if (roomsUpdated.Count == 0)
+                            {
+                                roomList = "No rooms";
+                            }
+                            else if (roomsUpdated.Count == 1)
+                            {
+                                roomList = roomsUpdated[0];
+                            }
+                            else if (roomsUpdated.Count == 2)
+                            {
+                                roomList = $"{roomsUpdated[0]} and {roomsUpdated[1]}";
+                            }
+                            else
+                            {
+                                roomList = string.Join(", ", roomsUpdated.Take(roomsUpdated.Count - 1)) + $", and {roomsUpdated.Last()}";
+                            }
+
+                            // Determine action based on spec level
+                            string action = selectedSpecLevel switch
+                            {
+                                "Complete Home" => "added",
+                                "Complete Home Plus" => "deleted",
+                                _ => "processed"
+                            };
+
+                            // Grammar for fixtures and views
+                            string fixtureText = roomsUpdated.Count == 1 ? "Fixture updated" : "Fixtures updated";
+                            string viewText = viewCount == 1 ? "view" : "views";
+
+                            // Create the final message
+                            string messageSummary = $"{fixtureText} in {roomList}. Ceiling fan notes {action} across {viewCount} {viewText}.";
+
+                            // Show the summary dialog
+                            Utils.TaskDialogInformation("Complete", "First Floor Electrical", messageSummary);
                         }
-                        else if (roomsUpdated.Count == 1)
-                        {
-                            roomList = roomsUpdated[0];
-                        }
-                        else if (roomsUpdated.Count == 2)
-                        {
-                            roomList = $"{roomsUpdated[0]} and {roomsUpdated[1]}";
-                        }
-                        else
-                        {
-                            roomList = string.Join(", ", roomsUpdated.Take(roomsUpdated.Count - 1)) + $", and {roomsUpdated.Last()}";
-                        }
-
-                        // Determine action based on spec level
-                        string action = selectedSpecLevel switch
-                        {
-                            "Complete Home" => "added",
-                            "Complete Home Plus" => "deleted",
-                            _ => "processed"
-                        };
-
-                        // Grammar for fixtures and views
-                        string fixtureText = roomsUpdated.Count == 1 ? "Fixture updated" : "Fixtures updated";
-                        string viewText = viewCount == 1 ? "view" : "views";
-
-                        // Create the final message
-                        string messageSummary = $"{fixtureText} in {roomList}. Ceiling fan notes {action} across {viewCount} {viewText}.";
-
-                        // Show the summary dialog
-                        Utils.TaskDialogInformation("Complete", "First Floor Electrical", messageSummary);
                     }
 
                     #endregion
