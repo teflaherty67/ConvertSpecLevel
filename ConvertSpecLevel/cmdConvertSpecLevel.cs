@@ -73,30 +73,82 @@ namespace ConvertSpecLevel
 
             // if found, proceed with the rest of code
             else
-            {                
+            {
                 #region Form
 
-                // launch the form
-                frmConvertSpecLevel curForm = new frmConvertSpecLevel(curDoc, uidoc);
-                curForm.Topmost = true;
+                // Selection state — persisted across form re-opens
+                Reference selectedOutlet = null;
+                Wall selectedSprinklerWall = null;
+                Wall selectedGarageWall = null;
+                string selectedClient = null;
+                string selectedSpecLevel = null;
 
-                curForm.ShowDialog();
+                // Form state — preserved when the form closes for a Revit pick
+                int clientIndex = 0;
+                bool isCompleteHomePlus = false;
 
-                // check if user clicked Cancel
-                if (curForm.DialogResult != true)
+                // Pre-fetch the First Floor electrical view once
+                View firstFloorElecView = Utils.GetAllViewsByNameContainsAndAssociatedLevel(
+                    curDoc, "Electrical", "First Floor").FirstOrDefault();
+
+                while (true)
                 {
-                    return Result.Cancelled;
+                    frmConvertSpecLevel curForm = new frmConvertSpecLevel(curDoc, uidoc);
+                    curForm.Topmost = true;
+                    curForm.InitialClientIndex = clientIndex;
+                    curForm.InitialIsCompleteHomePlus = isCompleteHomePlus;
+                    curForm.ShowOutletAsSelected = (selectedOutlet != null);
+                    curForm.ShowWallsAsSelected = (selectedSprinklerWall != null && selectedGarageWall != null);
+
+                    curForm.ShowDialog();
+
+                    // Capture form state in case we need to reopen
+                    clientIndex = curForm.GetClientIndex();
+                    isCompleteHomePlus = curForm.GetIsCompleteHomePlus();
+
+                    if (curForm.PendingSelection == frmConvertSpecLevel.SelectionRequest.Outlet)
+                    {
+                        // Switch to the electrical view so the outlet is visible
+                        if (firstFloorElecView != null)
+                            uidoc.ActiveView = firstFloorElecView;
+
+                        try
+                        {
+                            selectedOutlet = uidoc.Selection.PickObject(
+                                ObjectType.Element,
+                                new frmConvertSpecLevel.OutletSelectionFilter(),
+                                "Select sprinkler outlet to remove");
+                        }
+                        catch { /* User cancelled — reopen form without a selection */ }
+                        continue;
+                    }
+
+                    if (curForm.PendingSelection == frmConvertSpecLevel.SelectionRequest.Walls)
+                    {
+                        // Switch to the electrical view so walls are visible
+                        if (firstFloorElecView != null)
+                            uidoc.ActiveView = firstFloorElecView;
+
+                        Wall outletWall = Utils.SelectWall(uidoc, "Select wall to host sprinkler outlet.");
+                        if (outletWall != null)
+                        {
+                            selectedSprinklerWall = outletWall;
+                            Wall garageWall = Utils.SelectWall(uidoc, "Select front garage wall.");
+                            if (garageWall != null)
+                                selectedGarageWall = garageWall;
+                        }
+                        continue;
+                    }
+
+                    // No pending selection — user clicked OK or Cancel (or closed the window)
+                    if (curForm.DialogResult != true)
+                        return Result.Cancelled;
+
+                    selectedClient = curForm.GetSelectedClient();
+                    selectedSpecLevel = curForm.GetSelectedSpecLevel();
+                    break;
                 }
 
-                // get user input from form
-                string selectedClient = curForm.GetSelectedClient();
-                string selectedSpecLevel = curForm.GetSelectedSpecLevel();
-
-
-                Reference selectedOutlet = curForm.SelectedOutlet;
-                Wall selectedSprinklerWall = curForm.SelectedOutletWall;
-                Wall selectedGarageWall = curForm.SelectedGarageWall;
-               
                 #endregion
 
                 #region Transaction Group
