@@ -113,6 +113,9 @@ namespace ConvertSpecLevel
 
         private void SpecLevel_Changed(object sender, RoutedEventArgs e)
         {
+            if (btnDynamicRow == null)
+                return;
+
             // Reset the button when spec level changes so the user re-selects for the new mode
             btnDynamicRow.Content = "Select";
         }
