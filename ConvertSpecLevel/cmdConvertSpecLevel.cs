@@ -2253,6 +2253,17 @@ namespace ConvertSpecLevel
             string tagFamilyName    = "LD_AN_Tag_EF_Type-Comments";
             string tagTypeName      = "Type 2";
 
+            // remove any existing sprinkler outlets to avoid duplicates
+            List<ElementId> existingOutlets = new FilteredElementCollector(curDoc)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.FamilyName == outletFamilyName && fi.Symbol.Name == outletTypeName)
+                .Select(fi => fi.Id)
+                .ToList();
+
+            foreach (ElementId id in existingOutlets)
+                curDoc.Delete(id);
+
             // get the active First Floor electrical plan (already set by the caller)
             View planView = Utils.GetAllViewsByNameContainsAndAssociatedLevel(curDoc, "Electrical", "First Floor").FirstOrDefault();
             if (planView == null)
