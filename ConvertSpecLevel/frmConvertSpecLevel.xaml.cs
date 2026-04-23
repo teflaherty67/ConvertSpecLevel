@@ -68,9 +68,8 @@ namespace ConvertSpecLevel
             else
                 rbCompleteHome.IsChecked = true;
 
-            // Show button as "Selected" if the command has already captured a selection
-            if (ShowOutletAsSelected || ShowWallsAsSelected)
-                btnDynamicRow.Content = "Selected";
+            // Sync label text and button state
+            UpdateDynamicRow(showAsSelected: ShowOutletAsSelected || ShowWallsAsSelected);
         }
 
         private void PopulateComboBoxes()
@@ -119,11 +118,20 @@ namespace ConvertSpecLevel
 
         private void SpecLevel_Changed(object sender, RoutedEventArgs e)
         {
-            if (btnDynamicRow == null)
+            if (btnDynamicRow == null || lblDynamicRow == null)
                 return;
 
-            // Reset the button when spec level changes so the user re-selects for the new mode
-            btnDynamicRow.Content = "Select";
+            UpdateDynamicRow();
+        }
+
+        private void UpdateDynamicRow(bool showAsSelected = false)
+        {
+            if (rbCompleteHome.IsChecked == true)
+                lblDynamicRow.Content = "Select outlet to remove:";
+            else
+                lblDynamicRow.Content = "Select wall for sprinkler outlet:";
+
+            btnDynamicRow.Content = showAsSelected ? "Selected" : "Select";
         }
 
         private void btnDynamicRow_Click(object sender, RoutedEventArgs e)
