@@ -34,12 +34,18 @@ namespace ConvertSpecLevel
 
         #region Constructor
 
-        public frmConvertSpecLevel(Document curDoc, UIDocument uiDoc)
+        public frmConvertSpecLevel(Document curDoc, UIDocument uiDoc,
+            int clientIndex = 0, bool isCompleteHomePlus = false,
+            bool showOutletAsSelected = false, bool showWallsAsSelected = false)
         {
             InitializeComponent();
 
             CurDoc = curDoc;
             UIDoc = uiDoc;
+            InitialClientIndex = clientIndex;
+            InitialIsCompleteHomePlus = isCompleteHomePlus;
+            ShowOutletAsSelected = showOutletAsSelected;
+            ShowWallsAsSelected = showWallsAsSelected;
 
             InitializeForm();
         }

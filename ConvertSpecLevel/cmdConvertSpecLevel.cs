@@ -93,12 +93,12 @@ namespace ConvertSpecLevel
 
                 while (true)
                 {
-                    frmConvertSpecLevel curForm = new frmConvertSpecLevel(curDoc, uidoc);
+                    frmConvertSpecLevel curForm = new frmConvertSpecLevel(curDoc, uidoc,
+                        clientIndex: clientIndex,
+                        isCompleteHomePlus: isCompleteHomePlus,
+                        showOutletAsSelected: (selectedOutlet != null),
+                        showWallsAsSelected: (selectedSprinklerWall != null && selectedGarageWall != null));
                     curForm.Topmost = true;
-                    curForm.InitialClientIndex = clientIndex;
-                    curForm.InitialIsCompleteHomePlus = isCompleteHomePlus;
-                    curForm.ShowOutletAsSelected = (selectedOutlet != null);
-                    curForm.ShowWallsAsSelected = (selectedSprinklerWall != null && selectedGarageWall != null);
 
                     curForm.ShowDialog();
 
