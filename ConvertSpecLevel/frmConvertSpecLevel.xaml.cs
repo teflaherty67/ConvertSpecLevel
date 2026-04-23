@@ -33,9 +33,9 @@ namespace ConvertSpecLevel
         public bool IsCompleteHomePlus { get; private set; }
 
         // properties for selected elements
-        public Reference SelectedOutlet { get; set; }        
-        public Reference SelectedOutletWall { get; set; }
-        public Reference SelectedGarageWall { get; set; }
+        public Reference SelectedOutlet { get; set; }
+        public Wall SelectedOutletWall { get; set; }
+        public Wall SelectedGarageWall { get; set; }
 
 
 
@@ -155,7 +155,7 @@ namespace ConvertSpecLevel
         {
             try
             {
-                this.Hide();
+                this.WindowState = WindowState.Minimized;
 
                 // get all views with Electrical in the name & associated with the First Floor
                 List<View> firstFloorElecViews = Utils.GetAllViewsByNameContainsAndAssociatedLevel(CurDoc, "Electrical", "First Floor");
@@ -178,11 +178,18 @@ namespace ConvertSpecLevel
                 btnDynamicRow.Content = "Selected";
                 btnDynamicRow.IsEnabled = true;
 
-                this.Visibility = System.Windows.Visibility.Visible;
+                this.WindowState = WindowState.Normal;
+                this.Activate();
+            }
+            catch (OperationCanceledException)
+            {
+                this.WindowState = WindowState.Normal;
+                this.Activate();
             }
             catch (Exception ex)
             {
-                // notify the user of the error
+                this.WindowState = WindowState.Normal;
+                this.Activate();
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting outlet: {ex.Message}");
             }
         }
@@ -191,7 +198,7 @@ namespace ConvertSpecLevel
         {
             try
             {
-                this.Hide();
+                this.WindowState = WindowState.Minimized;
 
                 // get the first electrical plan associated with First Floor level
                 View planView = Utils.GetAllViewsByNameContainsAndAssociatedLevel(CurDoc, "Electrical", "First Floor").FirstOrDefault();
@@ -199,7 +206,8 @@ namespace ConvertSpecLevel
                 // null check
                 if (planView == null)
                 {
-                    // notify the user and exit
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
                     Utils.TaskDialogError("Error", "Sprinkler Outlet", "No First Floor electrical plan found.");
                     return;
                 }
@@ -209,26 +217,26 @@ namespace ConvertSpecLevel
 
                 // prompt the user to select the wall to host the sprinkler outlet
                 Wall outletWall = Utils.SelectWall(UIDoc, "Select wall to host sprinkler outlet.");
-                if (outletWall == null) return;
-
-                // verify the selected element is a wall
                 if (outletWall == null)
                 {
-                    Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
-                    this.Visibility = System.Windows.Visibility.Visible;
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
                     return;
                 }
+
+                SelectedOutletWall = outletWall;
 
                 SelectGarageFrontWall();
             }
             catch (OperationCanceledException)
             {
-                // User pressed Esc or cancelled - just show the form again, no error message needed
-                this.Visibility = System.Windows.Visibility.Visible;
+                this.WindowState = WindowState.Normal;
+                this.Activate();
             }
             catch (Exception ex)
             {
-                this.Visibility = System.Windows.Visibility.Visible;
+                this.WindowState = WindowState.Normal;
+                this.Activate();
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
@@ -239,29 +247,30 @@ namespace ConvertSpecLevel
             {
                 // prompt the user to select the front garage wall
                 Wall garageWall = Utils.SelectWall(UIDoc, "Select front garage wall.");
-                if (garageWall == null) return;
-
-                // verify the selected element is a wall
                 if (garageWall == null)
                 {
-                    Utils.TaskDialogError("Error", "Spec Conversion", "Selected element is not a wall. Please try again.");
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
                     return;
                 }
+
+                SelectedGarageWall = garageWall;
 
                 btnDynamicRow.Content = "Selected";
                 btnDynamicRow.IsEnabled = true;
 
-                // show the form again
-                this.Visibility = System.Windows.Visibility.Visible;
+                this.WindowState = WindowState.Normal;
+                this.Activate();
             }
             catch (OperationCanceledException)
             {
-                // User pressed Esc or cancelled - just show the form again, no error message needed
-                this.Visibility = System.Windows.Visibility.Visible;
+                this.WindowState = WindowState.Normal;
+                this.Activate();
             }
             catch (Exception ex)
             {
-                this.Visibility = System.Windows.Visibility.Visible;
+                this.WindowState = WindowState.Normal;
+                this.Activate();
                 Utils.TaskDialogError("Error", "Spec Conversion", $"Error selecting wall: {ex.Message}");
             }
         }
@@ -272,6 +281,22 @@ namespace ConvertSpecLevel
 
         private void btnOK_Click(object sender, RoutedEventArgs e)
         {
+            string specLevel = GetSelectedSpecLevel();
+
+            if (specLevel == "Complete Home" && SelectedOutlet == null)
+            {
+                System.Windows.MessageBox.Show("Please select the sprinkler outlet to remove before continuing.",
+                    "Selection Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (specLevel == "Complete Home Plus" && (SelectedOutletWall == null || SelectedGarageWall == null))
+            {
+                System.Windows.MessageBox.Show("Please select both the sprinkler outlet wall and the front garage wall before continuing.",
+                    "Selection Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             this.DialogResult = true;
             this.Close();
         }

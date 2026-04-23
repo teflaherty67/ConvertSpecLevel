@@ -94,8 +94,8 @@ namespace ConvertSpecLevel
 
 
                 Reference selectedOutlet = curForm.SelectedOutlet;
-                Reference selectedSprinklerWall = curForm.SelectedOutletWall;
-                Reference selectedGarageWall = curForm.SelectedGarageWall;
+                Wall selectedSprinklerWall = curForm.SelectedOutletWall;
+                Wall selectedGarageWall = curForm.SelectedGarageWall;
                
                 #endregion
 
@@ -2175,7 +2175,7 @@ namespace ConvertSpecLevel
             }
         }
 
-        private void ManageSprinklerOutlet(Document curDoc, UIDocument uidoc, string selectedSpecLevel, Reference selectedSprinklerWall, Reference selectedGarageWall, Reference selectedOutlet)
+        private void ManageSprinklerOutlet(Document curDoc, UIDocument uidoc, string selectedSpecLevel, Wall selectedSprinklerWall, Wall selectedGarageWall, Reference selectedOutlet)
         {
             if (selectedSpecLevel == "Complete Home")
                 RemoveSprinklerOutlet(curDoc, selectedOutlet);
@@ -2193,10 +2193,9 @@ namespace ConvertSpecLevel
             }
         }
 
-        private void AddSprinklerOutlet(Document curDoc, UIDocument uidoc, Reference selectedSprinklerWall, Reference selectedGarageWall)
+        private void AddSprinklerOutlet(Document curDoc, UIDocument uidoc, Wall selectedSprinklerWall, Wall selectedGarageWall)
         {
-            // Get selected Garage wall
-            Wall garageWall = curDoc.GetElement(selectedGarageWall) as Wall;
+            Wall garageWall = selectedGarageWall;
 
             // Create options for geometry extraction - controls how detailed the geometry will be
             Options geometryOptions = new Options();
@@ -2269,8 +2268,7 @@ namespace ConvertSpecLevel
                         return;
                     }
 
-                    // get the outlet wall to project the tartget point onto
-                    Wall outletWall = curDoc.GetElement(selectedSprinklerWall) as Wall;
+                    Wall outletWall = selectedSprinklerWall;
 
                     // Get the outlet wall's geometry to find where to place the outlet
                     GeometryElement outletWallGeometry = outletWall.get_Geometry(geometryOptions);
