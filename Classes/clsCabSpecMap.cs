@@ -59,7 +59,7 @@ namespace ConvertSpecLevel.Classes
         private static readonly Dictionary<string, RefSpSettings> _refSpSettings = new Dictionary<string, RefSpSettings>
         {
             // Complete Home = RefSp cabinet hidden
-            { "Central Texas-Complete Home", new RefSpSettings { IsVisible = true, TypeName = "39\"x18\"x15\"", HeightOffsetFromLevel = 6.0 } },
+            { "Central Texas-Complete Home", new RefSpSettings { IsVisible = false, TypeName = "", HeightOffsetFromLevel = 0.0 } },
             { "Dallas/Ft Worth-Complete Home", new RefSpSettings { IsVisible = false, TypeName = "", HeightOffsetFromLevel = 0.0 } },
             { "Florida-Complete Home", new RefSpSettings { IsVisible = false, TypeName = "", HeightOffsetFromLevel = 0.0 } },
             { "Houston-Complete Home", new RefSpSettings { IsVisible = false, TypeName = "", HeightOffsetFromLevel = 0.0 } },
