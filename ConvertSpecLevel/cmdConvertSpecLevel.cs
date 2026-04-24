@@ -9,6 +9,13 @@ namespace ConvertSpecLevel
     [Transaction(TransactionMode.Manual)]
     public class cmdConvertSpecLevel : IExternalCommand
     {
+#if REVIT2025
+        private static readonly string _libraryBasePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025";
+#endif
+#if REVIT2026
+        private static readonly string _libraryBasePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2026";
+#endif
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             // Revit application and document variables
@@ -55,7 +62,7 @@ namespace ConvertSpecLevel
                         curDoc.Delete(elementsToDelete);
 
                         // load the new Ref Sp family
-                        Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Groups", "LD_GR_Kitchen_Ref-Sp");
+                        Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Groups", "LD_GR_Kitchen_Ref-Sp");
 
                         // commit the transaction
                         t.Commit();
@@ -323,30 +330,6 @@ namespace ConvertSpecLevel
                     #region General Electrical Setup
 
                     // variables for sprinkler family
-            FamilySymbol sprinklerSymbol = null;
-            FamilyInstance outletInstance = null;
-            string outletFamilyName = "LD_EF_Recep_None";
-            string outletTypeName = "Sprinkler";
-#if REVIT2025
-            string outletFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical";
-#endif
-
-#if REVIT2026
-            string outletFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2026\Electrical";
-#endif
-
-            // variables for tag family
-            FamilySymbol tagSymbol = null;
-            string tagFamilyName = "LD_AN_Tag_EF_Type-Comments";
-            string tagTypeName = "Type 2";
-#if REVIT2025
-            string tagFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation\Tags";
-#endif
-
-#if REVIT2026
-            string tagFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2026\Annotation\Tags";
-#endif
-
                     // get all electrical plan views
                     List<View> electricalViews = Utils.GetAllViewsByNameContains(curDoc, "Electrical");
 
@@ -357,8 +340,8 @@ namespace ConvertSpecLevel
                         .Any(level => level.Name.Contains("Second Floor"));
 
                     // load the new electrical families (outlet & light fixture)
-                    Family lightSymbol = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Lighting", "LD_LF_None");
-                    Family outletSymbol = Utils.LoadFamilyFromLibrary(curDoc, @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical", "LD_EF_Recep_Wall");
+                    Family lightSymbol = Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Lighting", "LD_LF_None");
+                    Family outletSymbol = Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Electrical", "LD_EF_Recep_Wall");
 
                     #endregion
 
@@ -982,7 +965,7 @@ namespace ConvertSpecLevel
             {
                 // load the current family into the project
                 Family materialFamily = Utils.LoadFamilyFromLibrary(curDoc,
-                    @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation", "LD_AN_Floor_Material");
+                    $@"{_libraryBasePath}\Annotation", "LD_AN_Floor_Material");
 
                 // get the type from the family
                 FamilySymbol materialSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_AN_Floor_Material", "Type 1");
@@ -1109,7 +1092,7 @@ namespace ConvertSpecLevel
 
             // SECOND: If family doesn't exist, load it from the library
             Family loadedFamily = Utils.LoadFamilyFromLibrary(curDoc,
-                @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Doors",
+                $@"{_libraryBasePath}\Doors",
                 familyName);
 
             // Return true if family was loaded successfully (not null)
@@ -1335,8 +1318,8 @@ namespace ConvertSpecLevel
         private void ReplaceWallCabinets(Document curDoc, string cabHeight)
         {
             // load the new cabinet families
-            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_1-Dr_Flush");
-            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Casework\Kitchen", "LD_CW_Wall_1-Dr_Flush");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Casework\Kitchen", "LD_CW_Wall_2-Dr_Flush");
 
             // get all wall cabinets in the document
             List<FamilyInstance> m_allWallCabs = GetAllStandardWallCabinets(curDoc);
@@ -1427,7 +1410,7 @@ namespace ConvertSpecLevel
         private void ReplaceCabinetFillers(Document curDoc, string fillerHeight)
         {
             // load the new filler families
-            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Casework\Kitchen", "LD_CW_Wall_Filler");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Casework\Kitchen", "LD_CW_Wall_Filler");
 
             // get all wall fillers in the document
             List<FamilyInstance> m_allWallFillers = GetAllWallFillers(curDoc);
@@ -1645,8 +1628,8 @@ namespace ConvertSpecLevel
         private void UpdateBacksplash(Document curDoc, string selectedSpecLevel)
         {
             // load the new counter & backsplash families
-            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Counter_Top-Mount");
-            Utils.LoadFamilyFromLibrary(curDoc, $@"S:\Shared Folders\Lifestyle USA Design\Library 2025\Generic Model\Kitchen", "LD_GM_Kitchen_Backsplash");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Generic Model\Kitchen", "LD_GM_Kitchen_Counter_Top-Mount");
+            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Generic Model\Kitchen", "LD_GM_Kitchen_Backsplash");
 
             // get all generic model instances in the document
             List<FamilyInstance> m_allGenericModels = Utils.GetAllGenericFamilies(curDoc);
@@ -2239,15 +2222,6 @@ namespace ConvertSpecLevel
 
         private void AddSprinklerOutlet(Document curDoc, UIDocument uidoc, Wall selectedSprinklerWall, Wall selectedGarageWall)
         {
-#if REVIT2025
-            string outletFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Electrical";
-            string tagFilePath    = @"S:\Shared Folders\Lifestyle USA Design\Library 2025\Annotation\Tags";
-#endif
-#if REVIT2026
-            string outletFilePath = @"S:\Shared Folders\Lifestyle USA Design\Library 2026\Electrical";
-            string tagFilePath    = @"S:\Shared Folders\Lifestyle USA Design\Library 2026\Annotation\Tags";
-#endif
-
             string outletFamilyName = "LD_EF_Recep_None";
             string outletTypeName   = "Sprinkler";
             string tagFamilyName    = "LD_AN_Tag_EF_Type-Comments";
@@ -2296,7 +2270,7 @@ namespace ConvertSpecLevel
             FamilySymbol sprinklerSymbol = Utils.GetFamilySymbolByName(curDoc, outletFamilyName, outletTypeName);
             if (sprinklerSymbol == null)
             {
-                Utils.LoadFamilyFromLibrary(curDoc, outletFilePath, outletFamilyName);
+                Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Electrical", outletFamilyName);
                 sprinklerSymbol = Utils.GetFamilySymbolByName(curDoc, outletFamilyName, outletTypeName);
             }
             if (sprinklerSymbol == null)
@@ -2309,7 +2283,7 @@ namespace ConvertSpecLevel
             FamilySymbol tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
             if (tagSymbol == null)
             {
-                Utils.LoadFamilyFromLibrary(curDoc, tagFilePath, tagFamilyName);
+                Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Annotation\Tags", tagFamilyName);
                 tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
             }
             if (tagSymbol == null)
