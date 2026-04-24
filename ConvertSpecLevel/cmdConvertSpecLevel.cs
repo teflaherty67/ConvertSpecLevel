@@ -194,26 +194,28 @@ namespace ConvertSpecLevel
                         // manage the floor material breaks
                         ManageFloorMaterialBreaksInActiveView(curDoc, listUpdatedRooms);
 
-                        // create a list of the rooms updated
-                        string listRooms;
-                        if (listUpdatedRooms.Count == 1)
-                        {
-                            listRooms = listUpdatedRooms[0];
-                        }
-                        else if (listUpdatedRooms.Count == 2)
-                        {
-                            listRooms = $"{listUpdatedRooms[0]} and {listUpdatedRooms[1]}";
-                        }
-                        else
-                        {
-                            listRooms = string.Join(", ", listUpdatedRooms.Take(listUpdatedRooms.Count - 1)) + $", and {listUpdatedRooms.Last()}";
-                        }
-
                         // commit the transaction
                         t.Commit();
 
-                        // notify the user
-                        Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
+                        // notify the user only if rooms were updated
+                        if (listUpdatedRooms.Count > 0)
+                        {
+                            string listRooms;
+                            if (listUpdatedRooms.Count == 1)
+                            {
+                                listRooms = listUpdatedRooms[0];
+                            }
+                            else if (listUpdatedRooms.Count == 2)
+                            {
+                                listRooms = $"{listUpdatedRooms[0]} and {listUpdatedRooms[1]}";
+                            }
+                            else
+                            {
+                                listRooms = string.Join(", ", listUpdatedRooms.Take(listUpdatedRooms.Count - 1)) + $", and {listUpdatedRooms.Last()}";
+                            }
+
+                            Utils.TaskDialogInformation("Complete", "Spec Conversion", $"Flooring was changed at {listRooms} per the specified spec level.");
+                        }
                     }
 
                     #endregion
@@ -729,7 +731,7 @@ namespace ConvertSpecLevel
         /// Updates the Floor Finish parameter for specified room types in the active view based on the selected specification level.
         /// </summary>
         /// <remarks>
-        /// This method updates the following room types: Master Bedroom.
+        /// This method updates the following room types: Master Bedroom, Family.
         /// Complete Home sets floor finish to "Carpet", Complete Home Plus sets it to "HS".
         /// Only processes rooms that are visible in the current active view.
         /// </remarks>
@@ -741,7 +743,8 @@ namespace ConvertSpecLevel
             // create a list of rooms to update
             List<string> m_RoomsToUpdateFloorFinish = new List<string>
             {
-                "Master Bedroom"
+                "Master Bedroom",
+                "Family"
             };
 
             // get the room element of the rooms to update
