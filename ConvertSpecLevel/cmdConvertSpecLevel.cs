@@ -857,6 +857,72 @@ namespace ConvertSpecLevel
                     AddFloorMaterialBreak(curDoc, curDoor);
                 }
             }
+
+            // handle material breaks that are not at door openings (e.g. open transitions, half-walls)
+            ManageNonDoorFloorMaterialBreaks(curDoc, allDoorsInView);
+        }
+
+        private void ManageNonDoorFloorMaterialBreaks(Document curDoc, List<FamilyInstance> allDoorsInView)
+        {
+            // collect all Floor Material instances in the active view
+            List<FamilyInstance> allBreaks = new FilteredElementCollector(curDoc, curDoc.ActiveView.Id)
+                .OfClass(typeof(FamilyInstance))
+                .OfCategory(BuiltInCategory.OST_FurnitureSystems)
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.Symbol.Family.Name == "Floor Material")
+                .ToList();
+
+            // build a list of door midpoints so we can skip breaks already handled above
+            List<XYZ> doorPoints = allDoorsInView
+                .Select(d => (d.Location as LocationPoint)?.Point)
+                .Where(p => p != null)
+                .ToList();
+
+            // collect all valid rooms in the document for point-in-room lookup
+            List<Room> allRooms = Utils.GetAllRooms(curDoc)
+                .Where(r => r.Area > 0)
+                .ToList();
+
+            foreach (FamilyInstance curBreak in allBreaks)
+            {
+                LocationCurve breakLoc = curBreak.Location as LocationCurve;
+                if (breakLoc == null) continue;
+
+                XYZ breakMid = breakLoc.Curve.Evaluate(0.5, true);
+
+                // skip breaks that are within 18" of a door — already handled
+                if (doorPoints.Any(dp => dp.DistanceTo(breakMid) <= 1.5))
+                    continue;
+
+                // sample a point 1' to each side of the break line (perpendicular in plan)
+                XYZ lineDir = (breakLoc.Curve.GetEndPoint(1) - breakLoc.Curve.GetEndPoint(0)).Normalize();
+                XYZ perpDir = new XYZ(-lineDir.Y, lineDir.X, 0);
+
+                XYZ sideA = breakMid + perpDir;
+                XYZ sideB = breakMid - perpDir;
+
+                Room roomA = allRooms.FirstOrDefault(r => r.IsPointInRoom(sideA));
+                Room roomB = allRooms.FirstOrDefault(r => r.IsPointInRoom(sideB));
+
+                if (roomA == null || roomB == null) continue;
+
+                string finishA = roomA.LookupParameter("Floor Finish")?.AsString() ?? "";
+                string finishB = roomB.LookupParameter("Floor Finish")?.AsString() ?? "";
+
+                if (finishA == finishB)
+                {
+                    // same finish on both sides — remove the break
+                    curDoc.Delete(curBreak.Id);
+                }
+                else
+                {
+                    // different finishes — update the annotation parameters to reflect current values
+                    string displayA = finishA == "Carpet" ? "C" : finishA;
+                    string displayB = finishB == "Carpet" ? "C" : finishB;
+                    curBreak.LookupParameter("Floor 1")?.Set(displayA);
+                    curBreak.LookupParameter("Floor 2")?.Set(displayB);
+                }
+            }
         }
 
        
