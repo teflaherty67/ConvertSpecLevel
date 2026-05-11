@@ -318,12 +318,17 @@ namespace ConvertSpecLevel
                         // raise/lower the backsplash height
                         UpdateBacksplash(curDoc, selectedSpecLevel);
 
-                        // replace all casework tags in the kitchen interior elevation
-                        // with the branded tag type, and ensure the RefSp is tagged for CHP
-                        RefreshInteriorElevCaseworkTags(curDoc, selectedSpecLevel, refSpSettings);
-
                         // commit the transaction
                         t.Commit();
+                    }
+
+                    // replace casework tags in its own transaction to avoid regeneration
+                    // conflicts caused by mixing ChangeTypeId with family replacements
+                    using (Transaction tTags = new Transaction(curDoc, "Refresh Casework Tags"))
+                    {
+                        tTags.Start();
+                        RefreshInteriorElevCaseworkTags(curDoc, selectedSpecLevel, refSpSettings);
+                        tTags.Commit();
 
                         // notify the user
                         // upper cabinets were revised per the selected spec level
@@ -1975,29 +1980,14 @@ namespace ConvertSpecLevel
                                     // create a new text note
                                     TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, notePosition, "Full Tile Backsplash", backsplashNoteType.Id);
 
-                                    // Middle alignment means the insertion point IS the text midpoint,
-                                    // which is also where leaders attach — so ends set to notePosition.Z
-                                    // will be at exactly the same height as the attachment → horizontal leaders
                                     backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
                                     backsplashNote.VerticalAlignment = VerticalTextAlignment.Middle;
 
-                                    // add leader lines
-                                    Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
-                                    Leader leaderLeft = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
-
-                                    // set leader attachment to midpoint
+                                    // add leader lines with midpoint attachment
+                                    backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
+                                    backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
                                     backsplashNote.LeaderLeftAttachment = LeaderAtachement.Midpoint;
                                     backsplashNote.LeaderRightAttachment = LeaderAtachement.Midpoint;
-
-                                    // pin leader ends horizontally at notePosition.Z (= text midpoint Z)
-                                    XYZ viewRight = curIntElev.RightDirection;
-                                    XYZ pt0 = curve.GetEndPoint(0);
-                                    XYZ pt1 = curve.GetEndPoint(1);
-                                    bool pt1IsRight = (pt1 - countertopPoint).Normalize().DotProduct(viewRight) > 0;
-                                    XYZ rightEnd = pt1IsRight ? pt1 : pt0;
-                                    XYZ leftEnd  = pt1IsRight ? pt0 : pt1;
-                                    leaderRight.End = new XYZ(rightEnd.X, rightEnd.Y, notePosition.Z);
-                                    leaderLeft.End  = new XYZ(leftEnd.X,  leftEnd.Y,  notePosition.Z);
 
                                     break; // exit loop after creating note in correct view
                                 }
