@@ -271,7 +271,7 @@ namespace ConvertSpecLevel
                         Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
                     }
 
-                    // get Ref Sp settings from the cabinet spec map (needed both inside and after the cabinet transaction)
+                    // get Ref Sp settings from the cabinet spec map
                     var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
                     if (refSpSettings == null)
                     {
@@ -320,14 +320,6 @@ namespace ConvertSpecLevel
 
                         // commit the transaction
                         t.Commit();
-                    }
-
-                    // tag the Ref Sp and its cabinet in the kitchen interior elevation views
-                    using (Transaction tTag = new Transaction(curDoc, "Tag Ref Sp Cabinet"))
-                    {
-                        tTag.Start();
-                        TagRefSpInInteriorElev(curDoc, refSpSettings);
-                        tTag.Commit();
                     }
 
                     #endregion
@@ -1577,95 +1569,6 @@ namespace ConvertSpecLevel
                 if (heightParam != null)
                 {
                     heightParam.Set(heightOffset);
-                }
-            }
-        }
-
-        private void TagRefSpInInteriorElev(Document curDoc, clsCabSpecMap.RefSpSettings refSpSettings)
-        {
-            string tagFamilyName = "LD_AN_Tag_CW_Type-Comments";
-            string tagTypeName   = "3/16\" Scale";
-
-            // ensure the tag family is loaded
-            FamilySymbol tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
-            if (tagSymbol == null)
-            {
-                Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Annotation\Tags", tagFamilyName);
-                tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
-            }
-            if (tagSymbol == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", $"Unable to find type '{tagTypeName}' in family '{tagFamilyName}'.");
-                return;
-            }
-            if (!tagSymbol.IsActive) { tagSymbol.Activate(); curDoc.Regenerate(); }
-
-            bool refSpVisible = refSpSettings.IsVisible;
-
-            List<ViewSection> intElevViews = GetAllIntElevViews(curDoc);
-            if (intElevViews == null || !intElevViews.Any()) return;
-
-            foreach (ViewSection curView in intElevViews)
-            {
-                // find Ref Sp instances visible in this view
-                List<FamilyInstance> refSpInView = new FilteredElementCollector(curDoc, curView.Id)
-                    .OfClass(typeof(FamilyInstance))
-                    .OfCategory(BuiltInCategory.OST_GenericModel)
-                    .Cast<FamilyInstance>()
-                    .Where(fi => fi.Symbol.Family.Name.Contains("LD_GR_Kitchen_Ref-Sp"))
-                    .ToList();
-
-                if (!refSpInView.Any()) continue;
-
-                // collect existing tags and which elements they already tag in this view
-                List<IndependentTag> existingTags = new FilteredElementCollector(curDoc, curView.Id)
-                    .OfClass(typeof(IndependentTag))
-                    .Cast<IndependentTag>()
-                    .ToList();
-
-                HashSet<ElementId> taggedIds = new HashSet<ElementId>();
-                foreach (IndependentTag t in existingTags)
-                {
-                    foreach (LinkElementId lei in t.GetTaggedElementIds())
-                    {
-                        if (lei.LinkInstanceId == ElementId.InvalidElementId)
-                            taggedIds.Add(lei.HostElementId);
-                    }
-                }
-
-                if (!refSpVisible)
-                {
-                    // CH: delete any existing tags on the Ref Sp instances in this view
-                    foreach (IndependentTag existingTag in existingTags.ToList())
-                    {
-                        bool tagsRefSp = existingTag.GetTaggedElementIds()
-                            .Where(lei => lei.LinkInstanceId == ElementId.InvalidElementId)
-                            .Select(lei => curDoc.GetElement(lei.HostElementId) as FamilyInstance)
-                            .Any(fi => fi != null && fi.Symbol.Family.Name.Contains("LD_GR_Kitchen_Ref-Sp"));
-
-                        if (tagsRefSp)
-                            curDoc.Delete(existingTag.Id);
-                    }
-                }
-                else
-                {
-                    // CHP: tag each untagged Ref Sp instance in this view
-                    foreach (FamilyInstance curRefSp in refSpInView)
-                    {
-                        if (taggedIds.Contains(curRefSp.Id)) continue;
-
-                        BoundingBoxXYZ bb = curRefSp.get_BoundingBox(curView);
-                        XYZ tagPos = bb != null
-                            ? new XYZ((bb.Min.X + bb.Max.X) / 2, (bb.Min.Y + bb.Max.Y) / 2, (bb.Min.Z + bb.Max.Z) / 2)
-                            : (curRefSp.Location as LocationPoint)?.Point ?? XYZ.Zero;
-
-                        IndependentTag newTag = IndependentTag.Create(curDoc, curView.Id,
-                            new Reference(curRefSp), false, TagMode.TM_ADDBY_CATEGORY,
-                            TagOrientation.Horizontal, tagPos);
-
-                        if (newTag != null)
-                            newTag.ChangeTypeId(tagSymbol.Id);
-                    }
                 }
             }
         }
