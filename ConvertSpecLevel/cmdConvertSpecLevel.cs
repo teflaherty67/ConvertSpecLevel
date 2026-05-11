@@ -271,6 +271,14 @@ namespace ConvertSpecLevel
                         Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
                     }
 
+                    // get Ref Sp settings before the transactions so both blocks can access it
+                    var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
+                    if (refSpSettings == null)
+                    {
+                        Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
+                        return Result.Failed;
+                    }
+
                     // create transaction for cabinet updates
                     using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
                     {
@@ -303,14 +311,6 @@ namespace ConvertSpecLevel
 
                         // revise the MW cabinet
                         ReplaceMWCabinet(curDoc, mwHeight);
-
-                        // get Ref Sp settings from the cabinet spec map
-                        var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
-                        if (refSpSettings == null)
-                        {
-                            Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
-                            return Result.Failed;
-                        }
 
                         // apply the Ref Sp settings
                         ManageRefSpCabinet(curDoc, refSpSettings);
