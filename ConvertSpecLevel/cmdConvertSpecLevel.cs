@@ -271,14 +271,6 @@ namespace ConvertSpecLevel
                         Utils.TaskDialogError("Error", "Spec Conversion", "No Interior Elevations sheet found.");
                     }
 
-                    // get Ref Sp settings before the transactions so both blocks can access it
-                    var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
-                    if (refSpSettings == null)
-                    {
-                        Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
-                        return Result.Failed;
-                    }
-
                     // create transaction for cabinet updates
                     using (Transaction t = new Transaction(curDoc, "Update Cabinets"))
                     {
@@ -312,6 +304,14 @@ namespace ConvertSpecLevel
                         // revise the MW cabinet
                         ReplaceMWCabinet(curDoc, mwHeight);
 
+                        // get Ref Sp settings from the cabinet spec map
+                        var refSpSettings = clsCabSpecMap.GetRefSpSettings(selectedClient, selectedSpecLevel);
+                        if (refSpSettings == null)
+                        {
+                            Utils.TaskDialogError("Error", "Spec Conversion", $"No RefSp settings found for {selectedClient} - {selectedSpecLevel}");
+                            return Result.Failed;
+                        }
+
                         // apply the Ref Sp settings
                         ManageRefSpCabinet(curDoc, refSpSettings);
 
@@ -320,20 +320,6 @@ namespace ConvertSpecLevel
 
                         // commit the transaction
                         t.Commit();
-                    }
-
-                    // replace casework tags in its own transaction to avoid regeneration
-                    // conflicts caused by mixing ChangeTypeId with family replacements
-                    using (Transaction tTags = new Transaction(curDoc, "Refresh Casework Tags"))
-                    {
-                        tTags.Start();
-                        RefreshInteriorElevCaseworkTags(curDoc, selectedSpecLevel, refSpSettings);
-                        tTags.Commit();
-
-                        // notify the user
-                        // upper cabinets were revised per the selected spec level
-                        // Ref Sp cabinet was added/removed per the selected spec level
-                        // backsplash height was raised/lowered per the selected spec level
                     }
 
                     #endregion
@@ -1702,96 +1688,6 @@ namespace ConvertSpecLevel
             }
         }
 
-        private void RefreshInteriorElevCaseworkTags(Document curDoc, string selectedSpecLevel, clsCabSpecMap.RefSpSettings refSpSettings)
-        {
-            // load the branded casework tag family
-            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Annotation\Tags", "LD_AN_Tag_CW_Type-Comments");
-
-            FamilySymbol tagSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_AN_Tag_CW_Type-Comments", "Type");
-            if (tagSymbol == null)
-            {
-                Utils.TaskDialogError("Error", "Spec Conversion", "Casework tag 'LD_AN_Tag_CW_Type-Comments : Type' not found.");
-                return;
-            }
-
-            if (!tagSymbol.IsActive) { tagSymbol.Activate(); curDoc.Regenerate(); }
-
-            // process only interior elevation views that contain a kitchen counter
-            foreach (ViewSection curIntElev in GetAllIntElevViews(curDoc))
-            {
-                bool hasKitchenCounter = new FilteredElementCollector(curDoc, curIntElev.Id)
-                    .OfCategory(BuiltInCategory.OST_GenericModel)
-                    .OfClass(typeof(FamilyInstance))
-                    .Cast<FamilyInstance>()
-                    .Any(gm => gm.Symbol.Family.Name.Contains("Kitchen_Counter") ||
-                               gm.Symbol.Family.Name.Contains("Kitchen Counter"));
-
-                if (!hasKitchenCounter) continue;
-
-                // change the type of every casework/RefSp tag in this view to the branded type
-                var existingTags = new FilteredElementCollector(curDoc, curIntElev.Id)
-                    .OfClass(typeof(IndependentTag))
-                    .Cast<IndependentTag>()
-                    .ToList();
-
-                var taggedRefSpIds = new HashSet<ElementId>();
-
-                foreach (IndependentTag curTag in existingTags)
-                {
-                    try
-                    {
-                        ICollection<LinkElementId> taggedIds = curTag.GetTaggedElementIds();
-                        if (taggedIds == null || !taggedIds.Any()) continue;
-
-                        LinkElementId linkElemId = taggedIds.First();
-                        if (linkElemId.LinkInstanceId != ElementId.InvalidElementId) continue;
-
-                        Element taggedElem = curDoc.GetElement(linkElemId.HostElementId);
-                        if (taggedElem == null) continue;
-
-                        bool isCasework = taggedElem.Category?.Id.Value == (long)BuiltInCategory.OST_Casework;
-                        bool isRefSp = taggedElem is FamilyInstance fi && fi.Symbol.Family.Name.Contains("Ref-Sp");
-
-                        if (!isCasework && !isRefSp) continue;
-
-                        curTag.ChangeTypeId(tagSymbol.Id);
-
-                        if (isRefSp) taggedRefSpIds.Add(taggedElem.Id);
-                    }
-                    catch { continue; }
-                }
-
-                // for CHP, add a tag for any RefSp instance that wasn't already tagged
-                if (selectedSpecLevel == "Complete Home Plus" && refSpSettings?.IsVisible == true)
-                {
-                    var refSpInstances = new FilteredElementCollector(curDoc, curIntElev.Id)
-                        .OfClass(typeof(FamilyInstance))
-                        .OfCategory(BuiltInCategory.OST_GenericModel)
-                        .Cast<FamilyInstance>()
-                        .Where(fi => fi.Symbol.Family.Name.Contains("Ref-Sp"))
-                        .ToList();
-
-                    foreach (FamilyInstance refSp in refSpInstances)
-                    {
-                        if (taggedRefSpIds.Contains(refSp.Id)) continue;
-
-                        LocationPoint loc = refSp.Location as LocationPoint;
-                        if (loc?.Point == null) continue;
-
-                        XYZ tagPos = new XYZ(loc.Point.X, loc.Point.Y, loc.Point.Z + 1.5);
-                        try
-                        {
-                            IndependentTag newTag = IndependentTag.Create(curDoc, curIntElev.Id,
-                                new Reference(refSp), false, TagMode.TM_ADDBY_CATEGORY,
-                                TagOrientation.Horizontal, tagPos);
-                            newTag.ChangeTypeId(tagSymbol.Id);
-                        }
-                        catch { continue; }
-                    }
-                }
-            }
-        }
-
         private void UpdateBacksplash(Document curDoc, string selectedSpecLevel)
         {
             // load the new counter & backsplash families
@@ -1981,9 +1877,9 @@ namespace ConvertSpecLevel
                                     TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, notePosition, "Full Tile Backsplash", backsplashNoteType.Id);
 
                                     backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
-                                    backsplashNote.VerticalAlignment = VerticalTextAlignment.Middle;
+                                    backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
 
-                                    // add leader lines with midpoint attachment
+                                    // add leader lines
                                     backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
                                     backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
                                     backsplashNote.LeaderLeftAttachment = LeaderAtachement.Midpoint;
