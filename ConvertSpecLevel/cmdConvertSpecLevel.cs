@@ -1894,6 +1894,17 @@ namespace ConvertSpecLevel
                                     backsplashNote.LeaderLeftAttachment = LeaderAtachement.Midpoint;
                                     backsplashNote.LeaderRightAttachment = LeaderAtachement.Midpoint;
 
+                                    // force both leaders horizontal by pinning their ends at the same Z as
+                                    // the note head; use the view's RightDirection to assign each endpoint
+                                    XYZ viewRight = (curDoc.GetElement(curIntElev.Id) as View)?.RightDirection ?? XYZ.BasisX;
+                                    XYZ pt0 = curve.GetEndPoint(0);
+                                    XYZ pt1 = curve.GetEndPoint(1);
+                                    bool pt1IsRight = (pt1 - countertopPoint).Normalize().DotProduct(viewRight) > 0;
+                                    XYZ rightEnd = pt1IsRight ? pt1 : pt0;
+                                    XYZ leftEnd  = pt1IsRight ? pt0 : pt1;
+                                    leaderRight.End = new XYZ(rightEnd.X, rightEnd.Y, notePosition.Z);
+                                    leaderLeft.End  = new XYZ(leftEnd.X,  leftEnd.Y,  notePosition.Z);
+
                                     break; // exit loop after creating note in correct view
                                 }
                                 catch (Exception ex)
@@ -2103,7 +2114,7 @@ namespace ConvertSpecLevel
                 "Loft"
             };
 
-            string noteText = "Block & pre-wire for clg fan";
+            string noteText = "Block & pre-wire for ceiling fan";
 
             // loop through each view to ensure notes are added/removed in all relevant views
             foreach (View curView in viewsElectrical)
