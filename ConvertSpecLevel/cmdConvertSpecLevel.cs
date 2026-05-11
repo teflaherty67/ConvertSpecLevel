@@ -2114,7 +2114,11 @@ namespace ConvertSpecLevel
                 "Loft"
             };
 
-            string noteText = "Block & pre-wire for ceiling fan";
+            // when adding, always use the abbreviated form
+            string addNoteText = "Block & pre-wire for clg fan";
+
+            // when deleting, catch both the abbreviated and full-word variants from existing templates
+            string[] deleteSearchTerms = { "Block & pre-wire for clg fan", "Block & pre-wire for ceiling fan" };
 
             // loop through each view to ensure notes are added/removed in all relevant views
             foreach (View curView in viewsElectrical)
@@ -2122,7 +2126,7 @@ namespace ConvertSpecLevel
                 if (specLevel == "Complete Home Plus")
                 {
                     // CHP to CH conversion - DELETE notes in all rooms
-                    int deletedCount = DeleteCeilingFanNotes(curDoc, curView.Id, roomsToUpdate, noteText);
+                    int deletedCount = DeleteCeilingFanNotes(curDoc, curView.Id, roomsToUpdate, deleteSearchTerms);
 
                     // increment the counter
                     totalDeleted += deletedCount;
@@ -2131,7 +2135,7 @@ namespace ConvertSpecLevel
                 {
                     // CH to CHP conversion - ADD notes in all rooms EXCEPT Covered Patio
                     List<string> roomsForNotes = roomsToUpdate.Where(r => r != "Covered Patio").ToList();
-                    int addedCount = AddCeilingFanNotes(curDoc, curView.Id, roomsForNotes, noteText);
+                    int addedCount = AddCeilingFanNotes(curDoc, curView.Id, roomsForNotes, addNoteText, deleteSearchTerms);
 
                     // increment the counter
                     totalAdded += addedCount;
@@ -2145,7 +2149,7 @@ namespace ConvertSpecLevel
         /// <summary>
         /// Deletes ceiling fan notes from specified rooms
         /// </summary>       
-        private static int DeleteCeilingFanNotes(Document curDoc, ElementId curViewId, List<string> roomNames, string noteText)
+        private static int DeleteCeilingFanNotes(Document curDoc, ElementId curViewId, List<string> roomNames, string[] searchTerms)
         {
             int deletedCount = 0;
 
@@ -2156,8 +2160,8 @@ namespace ConvertSpecLevel
 
                 foreach (Room room in rooms)
                 {
-                    // Find text notes in this room
-                    List<TextNote> notesToDelete = GetTextNotesInRoom(curDoc, curViewId, room, noteText);
+                    // Find text notes in this room matching any of the search terms
+                    List<TextNote> notesToDelete = GetTextNotesInRoom(curDoc, curViewId, room, searchTerms);
 
                     // Delete each matching note
                     foreach (TextNote note in notesToDelete)
@@ -2175,7 +2179,7 @@ namespace ConvertSpecLevel
         /// <summary>
         /// Adds ceiling fan notes to specified rooms
         /// </summary>       
-        private static int AddCeilingFanNotes(Document curDoc, ElementId curViewId, List<string> roomNames, string noteText)
+        private static int AddCeilingFanNotes(Document curDoc, ElementId curViewId, List<string> roomNames, string noteText, string[] existenceSearchTerms)
         {
             int addedCount = 0;
 
@@ -2200,8 +2204,8 @@ namespace ConvertSpecLevel
 
                 foreach (Room curRoom in rooms)
                 {
-                    // Check if note already exists
-                    List<TextNote> existingNotes = GetTextNotesInRoom(curDoc, curViewId, curRoom, noteText);
+                    // Check if a note already exists using both text variants
+                    List<TextNote> existingNotes = GetTextNotesInRoom(curDoc, curViewId, curRoom, existenceSearchTerms);
                     if (existingNotes.Count > 0)
                         continue; // Note already exists, skip
 
@@ -2239,7 +2243,7 @@ namespace ConvertSpecLevel
         /// Gets text notes in a specific room that contain the specified text
         /// </summary>        
         /// <returns>List of matching text notes</returns>
-        private static List<TextNote> GetTextNotesInRoom(Document curDoc, ElementId curViewId, Room room, string searchText)
+        private static List<TextNote> GetTextNotesInRoom(Document curDoc, ElementId curViewId, Room room, params string[] searchTerms)
         {
             List<TextNote> m_textNotes = new List<TextNote>();
 
@@ -2250,14 +2254,13 @@ namespace ConvertSpecLevel
 
             foreach (TextNote curNote in textNotes)
             {
-                // Check if note text contains the search text
-                if (curNote.Text.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                // Check if note text contains any of the search terms
+                bool matches = searchTerms.Any(term =>
+                    curNote.Text.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (matches && IsTextNoteInRoom(curNote, room))
                 {
-                    // Check if note is in the room (using bounding box intersection)
-                    if (IsTextNoteInRoom(curNote, room))
-                    {
-                        m_textNotes.Add(curNote);
-                    }
+                    m_textNotes.Add(curNote);
                 }
             }
 
