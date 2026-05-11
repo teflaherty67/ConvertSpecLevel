@@ -1724,25 +1724,22 @@ namespace ConvertSpecLevel
 
                 if (!hasKitchenCounter) continue;
 
-                // collect all IndependentTags in this view that target casework or the RefSp
-                var tagData = new List<(ElementId elemId, XYZ headPos)>();
-
+                // change the type of every casework/RefSp tag in this view to the branded type
                 var existingTags = new FilteredElementCollector(curDoc, curIntElev.Id)
                     .OfClass(typeof(IndependentTag))
                     .Cast<IndependentTag>()
                     .ToList();
 
+                var taggedRefSpIds = new HashSet<ElementId>();
+
                 foreach (IndependentTag curTag in existingTags)
                 {
                     try
                     {
-                        // GetTaggedElementIds() is the Revit 2023+ API for local and linked elements
                         ICollection<LinkElementId> taggedIds = curTag.GetTaggedElementIds();
                         if (taggedIds == null || !taggedIds.Any()) continue;
 
                         LinkElementId linkElemId = taggedIds.First();
-
-                        // skip linked-model tags
                         if (linkElemId.LinkInstanceId != ElementId.InvalidElementId) continue;
 
                         Element taggedElem = curDoc.GetElement(linkElemId.HostElementId);
@@ -1753,29 +1750,14 @@ namespace ConvertSpecLevel
 
                         if (!isCasework && !isRefSp) continue;
 
-                        tagData.Add((taggedElem.Id, curTag.TagHeadPosition));
-                        curDoc.Delete(curTag.Id);
+                        curTag.ChangeTypeId(tagSymbol.Id);
+
+                        if (isRefSp) taggedRefSpIds.Add(taggedElem.Id);
                     }
                     catch { continue; }
                 }
 
-                // re-create every recorded tag with the branded type at the same head position
-                foreach (var (elemId, headPos) in tagData)
-                {
-                    try
-                    {
-                        Element elem = curDoc.GetElement(elemId);
-                        if (elem == null) continue;
-
-                        IndependentTag newTag = IndependentTag.Create(curDoc, curIntElev.Id,
-                            new Reference(elem), false, TagMode.TM_ADDBY_CATEGORY,
-                            TagOrientation.Horizontal, headPos);
-                        newTag.ChangeTypeId(tagSymbol.Id);
-                    }
-                    catch { continue; }
-                }
-
-                // for CHP, ensure the RefSp is tagged even if it had no prior tag
+                // for CHP, add a tag for any RefSp instance that wasn't already tagged
                 if (selectedSpecLevel == "Complete Home Plus" && refSpSettings?.IsVisible == true)
                 {
                     var refSpInstances = new FilteredElementCollector(curDoc, curIntElev.Id)
@@ -1787,13 +1769,11 @@ namespace ConvertSpecLevel
 
                     foreach (FamilyInstance refSp in refSpInstances)
                     {
-                        // skip if we already re-tagged it above
-                        if (tagData.Any(td => td.elemId == refSp.Id)) continue;
+                        if (taggedRefSpIds.Contains(refSp.Id)) continue;
 
                         LocationPoint loc = refSp.Location as LocationPoint;
                         if (loc?.Point == null) continue;
 
-                        // place tag 1.5' above the RefSp insertion point
                         XYZ tagPos = new XYZ(loc.Point.X, loc.Point.Y, loc.Point.Z + 1.5);
                         try
                         {
