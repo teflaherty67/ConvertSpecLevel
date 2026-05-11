@@ -777,13 +777,12 @@ namespace ConvertSpecLevel
             {
                 // get the floor finish parameter
                 Parameter paramFloorFinish = curRoom.get_Parameter(BuiltInParameter.ROOM_FINISH_FLOOR);
-                // check if the parameter is not null and has a value
-                if (paramFloorFinish != null && !paramFloorFinish.IsReadOnly)
+                // only update and report if the value is actually changing
+                if (paramFloorFinish != null && !paramFloorFinish.IsReadOnly
+                    && paramFloorFinish.AsString() != floorFinish)
                 {
-                    // set the value of the floor finish parameter to the new value
                     paramFloorFinish.Set(floorFinish);
 
-                    // add the room name to the ist
                     Parameter paramRoomName = curRoom.get_Parameter(BuiltInParameter.ROOM_NAME);
                     m_updatedRoomNames.Add(paramRoomName.AsString());
                 }
@@ -1976,9 +1975,11 @@ namespace ConvertSpecLevel
                                     // create a new text note
                                     TextNote backsplashNote = TextNote.Create(curDoc, curIntElev.Id, notePosition, "Full Tile Backsplash", backsplashNoteType.Id);
 
-                                    // set text note properties
+                                    // Middle alignment means the insertion point IS the text midpoint,
+                                    // which is also where leaders attach — so ends set to notePosition.Z
+                                    // will be at exactly the same height as the attachment → horizontal leaders
                                     backsplashNote.HorizontalAlignment = HorizontalTextAlignment.Center;
-                                    backsplashNote.VerticalAlignment = VerticalTextAlignment.Top;
+                                    backsplashNote.VerticalAlignment = VerticalTextAlignment.Middle;
 
                                     // add leader lines
                                     Leader leaderRight = backsplashNote.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_R);
@@ -1988,9 +1989,8 @@ namespace ConvertSpecLevel
                                     backsplashNote.LeaderLeftAttachment = LeaderAtachement.Midpoint;
                                     backsplashNote.LeaderRightAttachment = LeaderAtachement.Midpoint;
 
-                                    // force both leaders horizontal by pinning their ends at the same Z as
-                                    // the note head; use the view's RightDirection to assign each endpoint
-                                    XYZ viewRight = (curDoc.GetElement(curIntElev.Id) as View)?.RightDirection ?? XYZ.BasisX;
+                                    // pin leader ends horizontally at notePosition.Z (= text midpoint Z)
+                                    XYZ viewRight = curIntElev.RightDirection;
                                     XYZ pt0 = curve.GetEndPoint(0);
                                     XYZ pt1 = curve.GetEndPoint(1);
                                     bool pt1IsRight = (pt1 - countertopPoint).Normalize().DotProduct(viewRight) > 0;
