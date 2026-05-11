@@ -1584,7 +1584,7 @@ namespace ConvertSpecLevel
         private void TagRefSpInInteriorElev(Document curDoc, clsCabSpecMap.RefSpSettings refSpSettings)
         {
             string tagFamilyName = "LD_AN_Tag_CW_Type-Comments";
-            string tagTypeName   = "Type";
+            string tagTypeName   = "3/16\" Scale";
 
             // ensure the tag family is loaded
             FamilySymbol tagSymbol = Utils.GetFamilySymbolByName(curDoc, tagFamilyName, tagTypeName);
