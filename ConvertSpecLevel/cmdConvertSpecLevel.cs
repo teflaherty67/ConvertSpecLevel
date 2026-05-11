@@ -318,6 +318,10 @@ namespace ConvertSpecLevel
                         // raise/lower the backsplash height
                         UpdateBacksplash(curDoc, selectedSpecLevel);
 
+                        // replace all casework tags in the kitchen interior elevation
+                        // with the branded tag type, and ensure the RefSp is tagged for CHP
+                        RefreshInteriorElevCaseworkTags(curDoc, selectedSpecLevel, refSpSettings);
+
                         // commit the transaction
                         t.Commit();
 
@@ -1690,6 +1694,116 @@ namespace ConvertSpecLevel
                     // raise the tag by 6"
                     XYZ newTagPoint = new XYZ(curTagPoint.X, curTagPoint.Y, curTagPoint.Z + 0.5);
                     curTag.TagHeadPosition = newTagPoint;
+                }
+            }
+        }
+
+        private void RefreshInteriorElevCaseworkTags(Document curDoc, string selectedSpecLevel, clsCabSpecMap.RefSpSettings refSpSettings)
+        {
+            // load the branded casework tag family
+            Utils.LoadFamilyFromLibrary(curDoc, $@"{_libraryBasePath}\Annotation\Tags", "LD_AN_Tag_CW_Type-Comments");
+
+            FamilySymbol tagSymbol = Utils.GetFamilySymbolByName(curDoc, "LD_AN_Tag_CW_Type-Comments", "Type");
+            if (tagSymbol == null)
+            {
+                Utils.TaskDialogError("Error", "Spec Conversion", "Casework tag 'LD_AN_Tag_CW_Type-Comments : Type' not found.");
+                return;
+            }
+
+            if (!tagSymbol.IsActive) { tagSymbol.Activate(); curDoc.Regenerate(); }
+
+            // process only interior elevation views that contain a kitchen counter
+            foreach (ViewSection curIntElev in GetAllIntElevViews(curDoc))
+            {
+                bool hasKitchenCounter = new FilteredElementCollector(curDoc, curIntElev.Id)
+                    .OfCategory(BuiltInCategory.OST_GenericModel)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Any(gm => gm.Symbol.Family.Name.Contains("Kitchen_Counter") ||
+                               gm.Symbol.Family.Name.Contains("Kitchen Counter"));
+
+                if (!hasKitchenCounter) continue;
+
+                // collect all IndependentTags in this view that target casework or the RefSp
+                var tagData = new List<(ElementId elemId, XYZ headPos)>();
+
+                var existingTags = new FilteredElementCollector(curDoc, curIntElev.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .Cast<IndependentTag>()
+                    .ToList();
+
+                foreach (IndependentTag curTag in existingTags)
+                {
+                    try
+                    {
+                        // GetTaggedElementIds() is the Revit 2023+ API for local and linked elements
+                        ICollection<LinkElementId> taggedIds = curTag.GetTaggedElementIds();
+                        if (taggedIds == null || !taggedIds.Any()) continue;
+
+                        LinkElementId linkElemId = taggedIds.First();
+
+                        // skip linked-model tags
+                        if (linkElemId.LinkInstanceId != ElementId.InvalidElementId) continue;
+
+                        Element taggedElem = curDoc.GetElement(linkElemId.HostElementId);
+                        if (taggedElem == null) continue;
+
+                        bool isCasework = taggedElem.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Casework;
+                        bool isRefSp = taggedElem is FamilyInstance fi && fi.Symbol.Family.Name.Contains("Ref-Sp");
+
+                        if (!isCasework && !isRefSp) continue;
+
+                        tagData.Add((taggedElem.Id, curTag.TagHeadPosition));
+                        curDoc.Delete(curTag.Id);
+                    }
+                    catch { continue; }
+                }
+
+                // re-create every recorded tag with the branded type at the same head position
+                foreach (var (elemId, headPos) in tagData)
+                {
+                    try
+                    {
+                        Element elem = curDoc.GetElement(elemId);
+                        if (elem == null) continue;
+
+                        IndependentTag newTag = IndependentTag.Create(curDoc, curIntElev.Id,
+                            new Reference(elem), false, TagMode.TM_ADDBY_CATEGORY,
+                            TagOrientation.Horizontal, headPos);
+                        newTag.ChangeTypeId(tagSymbol.Id);
+                    }
+                    catch { continue; }
+                }
+
+                // for CHP, ensure the RefSp is tagged even if it had no prior tag
+                if (selectedSpecLevel == "Complete Home Plus" && refSpSettings?.IsVisible == true)
+                {
+                    var refSpInstances = new FilteredElementCollector(curDoc, curIntElev.Id)
+                        .OfClass(typeof(FamilyInstance))
+                        .OfCategory(BuiltInCategory.OST_GenericModel)
+                        .Cast<FamilyInstance>()
+                        .Where(fi => fi.Symbol.Family.Name.Contains("Ref-Sp"))
+                        .ToList();
+
+                    foreach (FamilyInstance refSp in refSpInstances)
+                    {
+                        // skip if we already re-tagged it above
+                        if (tagData.Any(td => td.elemId == refSp.Id)) continue;
+
+                        LocationPoint loc = refSp.Location as LocationPoint;
+                        if (loc?.Point == null) continue;
+
+                        // place tag 1.5' above the RefSp insertion point
+                        XYZ tagPos = new XYZ(loc.Point.X, loc.Point.Y, loc.Point.Z + 1.5);
+                        try
+                        {
+                            IndependentTag newTag = IndependentTag.Create(curDoc, curIntElev.Id,
+                                new Reference(refSp), false, TagMode.TM_ADDBY_CATEGORY,
+                                TagOrientation.Horizontal, tagPos);
+                            newTag.ChangeTypeId(tagSymbol.Id);
+                        }
+                        catch { continue; }
+                    }
                 }
             }
         }
