@@ -1745,7 +1745,7 @@ namespace ConvertSpecLevel
                         Element taggedElem = curDoc.GetElement(linkElemId.HostElementId);
                         if (taggedElem == null) continue;
 
-                        bool isCasework = taggedElem.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Casework;
+                        bool isCasework = taggedElem.Category?.Id.Value == (long)BuiltInCategory.OST_Casework;
                         bool isRefSp = taggedElem is FamilyInstance fi && fi.Symbol.Family.Name.Contains("Ref-Sp");
 
                         if (!isCasework && !isRefSp) continue;
