@@ -735,47 +735,50 @@ namespace ConvertSpecLevel
             // get the active view from the document
             View activeView = curDoc.ActiveView;
 
-            // create a list of rooms to update
-            List<string> m_RoomsToUpdateFloorFinish = new List<string>
-            {
-                "Master Bedroom",
-                "Family"
-            };
-
-            // get the room element of the rooms to update
-            List<Room> m_RoomstoUpdate = GetRoomsByNameContainsInActiveView(curDoc, m_RoomsToUpdateFloorFinish);
-
-            // create the switch statement to determine the floor finish based on the spec level
-            string floorFinish = selectedSpecLevel switch
+            // Master Bedroom follows spec level; Family is always HS
+            string specLevelFinish = selectedSpecLevel switch
             {
                 "Complete Home" => "Carpet",
                 "Complete Home Plus" => "HS",
                 _ => null
             };
 
-            // check if the floor finish is null
-            if (floorFinish == null)
+            if (specLevelFinish == null)
             {
                 TaskDialog.Show("Error", "Invalid Spec Level selected.");
                 return new List<string>();
             }
 
-            // create an empty list to hold the room names fuond in the active view
+            // map each room name to its required floor finish
+            var roomFinishMap = new Dictionary<string, string>
+            {
+                { "Master Bedroom", specLevelFinish },
+                { "Family",         "HS" }
+            };
+
+            List<Room> m_RoomstoUpdate = GetRoomsByNameContainsInActiveView(curDoc, roomFinishMap.Keys.ToList());
+
+            // create an empty list to hold the room names found in the active view
             List<string> m_updatedRoomNames = new List<string>();
 
             // loop through the rooms to update
             foreach (Room curRoom in m_RoomstoUpdate)
             {
+                Parameter paramRoomName  = curRoom.get_Parameter(BuiltInParameter.ROOM_NAME);
+                string roomName          = paramRoomName?.AsString() ?? "";
+                string targetFinish      = roomFinishMap.FirstOrDefault(kvp =>
+                    roomName.IndexOf(kvp.Key, StringComparison.OrdinalIgnoreCase) >= 0).Value;
+
+                if (targetFinish == null) continue;
+
                 // get the floor finish parameter
                 Parameter paramFloorFinish = curRoom.get_Parameter(BuiltInParameter.ROOM_FINISH_FLOOR);
                 // only update and report if the value is actually changing
                 if (paramFloorFinish != null && !paramFloorFinish.IsReadOnly
-                    && paramFloorFinish.AsString() != floorFinish)
+                    && paramFloorFinish.AsString() != targetFinish)
                 {
-                    paramFloorFinish.Set(floorFinish);
-
-                    Parameter paramRoomName = curRoom.get_Parameter(BuiltInParameter.ROOM_NAME);
-                    m_updatedRoomNames.Add(paramRoomName.AsString());
+                    paramFloorFinish.Set(targetFinish);
+                    m_updatedRoomNames.Add(roomName);
                 }
             }
 
