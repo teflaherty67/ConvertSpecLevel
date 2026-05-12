@@ -351,6 +351,7 @@ namespace ConvertSpecLevel
                     if (firstFloorElecViews.Any())
                     {
                         uidoc.ActiveView = firstFloorElecViews.First();
+                        uidoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId == firstFloorElecViews.First().Id)?.ZoomToFit();
 
                         // create transaction for first floor electrical updates
                         using (Transaction t = new Transaction(curDoc, "Update First Floor Electrical"))
@@ -1088,15 +1089,28 @@ namespace ConvertSpecLevel
                     // create a new Floor Material instance
                     FamilyInstance newBreak = curDoc.Create.NewFamilyInstance(breakLine, materialSymbol, workPlane, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
-                    // set the floor finish for the FromRoom
-                    string fromRmFinish = fromRoom.LookupParameter("Floor Finish").AsString();
-                    if (fromRmFinish == "Carpet") fromRmFinish = "C";
-                    newBreak.LookupParameter("Floor 1").Set(fromRmFinish);
+                    // determine which room is on each side of the break line using perpendicular probe points
+                    // (matches the same convention ManageNonDoorFloorMaterialBreaks uses for existing breaks)
+                    XYZ lineDir  = wallDirection.Normalize();
+                    XYZ perpDir  = new XYZ(-lineDir.Y, lineDir.X, 0);   // 90° CCW = left side = Floor 1 side
+                    XYZ probeA   = doorPoint + perpDir;                  // Floor 1 side
+                    XYZ probeB   = doorPoint - perpDir;                  // Floor 2 side
 
-                    // set the floor finish for the ToRoom
-                    string toRmFinish = toRoom.LookupParameter("Floor Finish").AsString();
-                    if (toRmFinish == "Carpet") toRmFinish = "C";
-                    newBreak.LookupParameter("Floor 2").Set(toRmFinish);
+                    Room roomSideA = toRoom.IsPointInRoom(probeA) ? toRoom
+                                   : fromRoom.IsPointInRoom(probeA) ? fromRoom : null;
+                    Room roomSideB = (roomSideA == toRoom) ? fromRoom
+                                   : (roomSideA == fromRoom) ? toRoom : null;
+
+                    // fall back to fromRoom/toRoom order if probe fails
+                    if (roomSideA == null) { roomSideA = fromRoom; roomSideB = toRoom; }
+
+                    string finish1 = roomSideA.LookupParameter("Floor Finish")?.AsString() ?? "";
+                    string finish2 = roomSideB?.LookupParameter("Floor Finish")?.AsString() ?? "";
+                    if (finish1 == "Carpet") finish1 = "C";
+                    if (finish2 == "Carpet") finish2 = "C";
+
+                    newBreak.LookupParameter("Floor 1").Set(finish1);
+                    newBreak.LookupParameter("Floor 2").Set(finish2);
                 }
             }
         }
